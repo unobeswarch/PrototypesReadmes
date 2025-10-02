@@ -9,18 +9,8 @@
 |------------|-----------|
 | 🔹 Edinson Sanchez Fuentes | edsanchezf@unal.edu.co |
 | 🔹 Adrian Ramirez Gonzalez | adramirez@unal.edu.co |
-| 🔹 Sergio Nicolas Siabatto Cleves | ssiabatto@unal.edu.### ⚠### ⚠️ **Boundaries**
-> ❌ Stores only data related to pre-diagnostics and medical diagnoses  
-> ❌ Does not manage user information, credentials, or roles  
-> ❌ Does not contain data processing or transformation logic  
-> ❌ Does not implement business rules or complex validations
-
----> ❌ Stores only data related to pre-diagnostics and medical diagnoses  
-> ❌ Does not manage user information, credentials, or roles  
-> ❌ Does not contain data processing or transformation logic  
-> ❌ Does not implement business rules or complex validations
-
----co Barrero | mpolancob@unal.edu.co |
+| 🔹 Sergio Nicolas Siabatto Cleves | ssiabatto@unal.edu.co |
+|🔹Martin Polanco Barrero | mpolancob@unal.edu.co |
 | 🔹 David Fernando Adames Rondon | dadames@unal.edu.co |
 | 🔹 Julian Esteban Mendoza Wilches | jmendozaw@unal.edu.co |
 
