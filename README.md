@@ -3,6 +3,27 @@
 
 ---
 
+## 📑 **Table of Contents**
+
+1. [👥 Team 1B](#-team-1b)
+2. [🩺 Software System: NeumoDiagnostics](#-software-system-neumodiagnostics)
+   - [📋 Overview](#-overview)
+   - [✨ Key Features](#-key-features)
+     - [👤 For Patients](#-for-patients)
+     - [👨‍⚕️ For Doctors](#️-for-doctors)
+3. [🏗️ Architectural Structures](#️-architectural-structures)
+   - [🔗 Component and Connector (C & C) Structure](#-component-and-connector-c--c-structure)
+     - [📊 Architecture Diagram](#-architecture-diagram)
+   - [🔧 Service-Based Architecture](#-service-based-architecture)
+   - [🌐 REST Architectural Style](#-rest-architectural-style)
+     - [🔐 Identity and Authorization Services](#-identity-and-authorization-services)
+     - [🔄 Inter-Component Communication](#-inter-component-communication)
+   - [⚡ GraphQL](#-graphql)
+     - [🚫 Resolution of Over-fetching](#-resolution-of-over-fetching)
+     - [🔄 Dual Architecture Approach](#-dual-architecture-approach)
+
+---
+
 ## 👥 Team 1B
 
 | **Member** | **Email** |
@@ -44,7 +65,11 @@
 #### 📊 **Architecture Diagram**
 The following diagram illustrates our component and connector view:
 
+<div align="center">
+
 ![Component and connector view](images/cycview.png)
+
+</div>
 
 - Description of architectural styles used: We are using several architectural styles at both the connector and component levels. First let´s check the first ones:
 
@@ -109,6 +134,7 @@ The REST architectural style was implemented for services that demand a stable a
   REST, by offering a fixed structure and leveraging standard HTTP operations (POST, GET), ensures simple, robust integration with low coupling, which is ideal for these low-volatility services. The added complexity of a flexible querying engine like GraphQL is not justified when the required data is constant.
 
 </div>
+
 #### 🔄 **Inter-Component Communication**
 
 <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0; color: #333333;">
