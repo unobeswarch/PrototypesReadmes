@@ -101,6 +101,7 @@ A service-based architecture was adopted since the main components of the system
 The REST architectural style was implemented for services that demand a stable and predictable contract structure, as well as for internal communication where data over-fetching does not represent a critical concern.
 
 </div>
+
 #### 🔐 **Identity and Authorization Services**
 
 <div style="background-color: #f8f9fa; padding: 10px; border-radius: 5px; margin: 10px 0; color: #333333;">
@@ -147,7 +148,9 @@ The REST architectural style was implemented for services that demand a stable a
 GraphQL was selected to manage communication between the Frontend (Client) and the Business Logic (BusinessLogic) component due to its ability to optimize data transfer and support variable information requirements.
 
 </div>
-**📋 Justification:**
+
+
+**📋 Justification**
 
 #### 🚫 **Resolution of Over-fetching:**
 
@@ -545,18 +548,14 @@ cd NeumoDiagnostics-Docker
 > 🐧 **Note**: Open a terminal in your Linux distribution (you can use WSL on Windows)
 
 ```bash
-# Navigate to the docker configuration folder
-cd docker
+# Navigate to the docker configuration folder and type
+docker-compose up --build
 ```
-
-> 📝 **Next Steps**: *Add your additional deployment steps here*
 
 ---
 
 <div align="center">
 
 ### 🎉 **Ready to Deploy!**
-
-*Your NeumoDiagnostics system is now ready for local deployment*
 
 </div>
