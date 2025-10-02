@@ -36,4 +36,15 @@ Universidad Nacional de Colombia
 
 ![Component and connector view](images/cycview.png)
 
-- Description of architectural styles used:
+- Description of architectural styles used: We are using several architectural styles at both the connector and component levels. First let´s check the first ones:
+
+  -  ***Client & Server***: Let´s remember first what is this style about: It is an architectural style in which the system’s functions are divided into two main roles: the client, which requests and consumes services, and the server, which processes the requests and provides the resources or functionalities. 
+  
+     *The Client-Server style was adopted because it allows a clear separation of responsibilities between clients (user interfaces or consuming applications) and the server (business logic and data management). This facilitates scalability, system maintenance, and enables multiple clients to access the same services in a centralized and controlled way. Moreover, it is a widely adopted model that relies on standard protocols such as HTTP, ensuring interoperability.*. If we see at c & c view we can appreciate some client- server relations between the components, some of this relations are:
+
+      - front-end (Client) ---- businesslogic (Server)
+      - businesslogic (Client) ---- blogicdb (Server)
+      - businesslogic (Client) ---- prediagnostic (Server)
+      - prediagnostic (Client) ---- pdiagndb (Server)
+  -  ***Service-Based Architecture***: This style defines a way to make software components reusable through service interfaces. Services use common interface standards and an architectural pattern so they can be quickly incorporated into new applications. Our architecture adopts this style, defining several services in the components, like register service, authentication service, upload image service
+
