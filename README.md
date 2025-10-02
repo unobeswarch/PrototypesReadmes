@@ -17,7 +17,7 @@
 ## Logo:
 <div align="center">
 
-![logo team](images/logo.png)
+![logo team](images/logo.PNG)
 
 </div>
 ---
