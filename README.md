@@ -47,8 +47,8 @@
 
 ### 🔗 Component and Connector (C & C) Structure
 
-#### 📊 **Architecture Diagram**
-The following diagram illustrates our component and connector view:
+#### 📊 **c & c view**
+
 
 <div align="center">
 
