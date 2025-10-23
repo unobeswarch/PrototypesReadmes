@@ -80,7 +80,11 @@ Our NeumoDiagnostics system employs multiple architectural views to ensure compr
 
 ### 📚 **Layered Structure**
 
+<div align="center">
 
+![logo team](./images/layers.png)
+
+</div>
 #### 🎂 **Layered View**
 *Hierarchical organization of system layers and responsibilities*
 
