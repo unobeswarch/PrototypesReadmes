@@ -10,14 +10,14 @@
 | 🔹 Edinson Sanchez Fuentes | edsanchezf@unal.edu.co |
 | 🔹 Adrian Ramirez Gonzalez | adramirez@unal.edu.co |
 | 🔹 Sergio Nicolas Siabatto Cleves | ssiabatto@unal.edu.co |
-|🔹Martin Polanco Barrero | mpolancob@unal.edu.co |
+| 🔹 Martin Polanco Barrero | mpolancob@unal.edu.co |
 | 🔹 David Fernando Adames Rondon | dadames@unal.edu.co |
 | 🔹 Julian Esteban Mendoza Wilches | jmendozaw@unal.edu.co |
 
 ## Neuomodiagnostics
 <div align="center">
 
-![logo team](./images/logo.PNG)
+![Team Logo](./images/logo.PNG)
 
 </div>
 ---
@@ -46,7 +46,11 @@ Our NeumoDiagnostics system employs multiple architectural views to ensure compr
 #### 📊 **C&C View**
 *Visual representation of system components and their interconnections*
 
+<div align="center">
 
+![C&C View](./images/cycview.png)
+
+</div>
 
 **🎯 Description of Architectural Elements and Relations:**
 - Component interactions and communication patterns
@@ -82,7 +86,7 @@ Our NeumoDiagnostics system employs multiple architectural views to ensure compr
 
 <div align="center">
 
-![logo team](./images/layers.png)
+![Layered Structure](./images/layers.png)
 
 </div>
 #### 🎂 **Layered View**
@@ -107,13 +111,45 @@ Our NeumoDiagnostics system employs multiple architectural views to ensure compr
 #### 🔍 **Decomposition View**
 *System breakdown into modules and their relationships*
 
+<div align="center">
 
+![Decomposition Structure](./images/decomposition.png)
+
+</div>
 
 **🎯 Description of Architectural Elements and Relations:**
-- Module organization and hierarchy
-- Dependencies and interfaces between modules
-- Responsibility allocation across modules
+- This view decomposes the system into implementation units (modules and submodules) and shows a pure “is part of” hierarchy. Each module encapsulates a specific set of functionalities, and submodules represent finer components within those modules.
 
-**🏛️ Description of Architectural Patterns Used:**
-- Modular design principles
-- Encapsulation and abstraction strategies
+- Modules and submodules (from the diagram) with their functionalities and implementation mapping to the repository under `Desarrollo/`:
+
+	- Authentication module — implemented in `auth-be`
+		- Session Management (is part of Authentication)
+			- F1: Sign in
+			- F2: Sign out
+		- User Management (is part of Authentication)
+			- F3: Register user
+			- F4: Upload profile picture
+
+	- Cases Management module — implemented in `prediagnostic-be` 
+		- Query Management (is part of Cases Management)
+			- F5: List pending cases
+			- F6: List cases by patient
+			- F7: List case by ID
+		- Diagnostic Management (is part of Cases Management)
+			- F8: Register medical diagnosis
+
+	- Prediagnostic Management module — implemented in `prediagnostic-be`
+		- Radiograph Management (is part of Prediagnostic Management)
+			- F9: Upload radiograph
+		- Prediagnostic Registration (is part of Prediagnostic Management)
+			- F10: Register prediagnostic
+
+	- Notifications Management module — implemented in `notification-be`
+		- F11: Send notifications
+
+- Relations: each submodule has a single parent (the module it belongs to) and encapsulates specific functionalities (F1 – F11). They're organized hierarchically to reflect their containment relationships. These functionalities are grouped according to their logical association within the system. 
+
+- Intended uses of this view:
+	- Communicate the functional structure to newcomers in digestible chunks (modules → submodules → functionalities).
+	- Provide input for work assignment by module boundaries.
+	- Reason about the impact and localization of changes (tree structure enables targeting the affected module/submodule without cross-module edits).
