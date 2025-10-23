@@ -52,7 +52,7 @@ Our NeumoDiagnostics system employs multiple architectural views to ensure compr
 
 </div>
 
-**🎯 Description of Architectural Elements and Relations:**
+#### **🎯 Description of Architectural Elements and Relations:**
 This view describes runtime components, the interfaces they provide/require, and the connectors between them (see figure). It focuses on communication paths and protocols rather than implementation internals.
 
 - Clients
@@ -95,7 +95,7 @@ This view describes runtime components, the interfaces they provide/require, and
 	- DB drivers: `auth-be → auth-db (PostgreSQL)`, `prediagnostic-be → prediagnostic-db (MongoDB)`.
 	- File drivers: `prediagnostic-be → Radiography Image Storage`, `auth-be → Profile Image Storage`.
 
-**🏛️ Description of Architectural Styles and Patterns Used:**
+#### **🏛️ Description of Architectural Styles and Patterns Used:**
 - **Client–Server:** browsers/CLI act as clients of the `api-gateway` server over HTTP.
 - **API Gateway Pattern:** `api-gateway` exposes a unified surface for multiple backends and tailors responses for the UI (GraphQL + REST).
 - **Layered Style (tiers):** Presentation (clients), Communication (gateway), Logic (backends), Data (datastores), Asynchronous (broker), and External (Mailgun). Connectors respect top-down usage between adjacent tiers.
@@ -136,13 +136,13 @@ This view describes runtime components, the interfaces they provide/require, and
 
 </div>
 
-**🎯 Description of Architectural Elements and Relations:**
+#### **🎯 Description of Architectural Elements and Relations:**
 
 Our NeumoDiagnostics system is structured in **six distinct layers**, each with specific responsibilities and well-defined interactions:
 
 ---
 
-#### 🖼️ **Layer 1: Presentation**
+##### 🖼️ **Layer 1: Presentation**
 - **Purpose**: User interface and interaction management
 - **Components**: 
   - 🌐 Web Front-end
@@ -151,7 +151,7 @@ Our NeumoDiagnostics system is structured in **six distinct layers**, each with 
 
 ---
 
-#### 🔄 **Layer 2: Synchronous Communication**
+##### 🔄 **Layer 2: Synchronous Communication**
 - **Purpose**: Real-time request routing and handling
 - **Key Component**: 🚪 API Gateway
 - **Relations**: 
@@ -161,7 +161,7 @@ Our NeumoDiagnostics system is structured in **six distinct layers**, each with 
 
 ---
 
-#### ⚙️ **Layer 3: Logic**
+##### ⚙️ **Layer 3: Logic**
 - **Purpose**: Core business logic and system functionality
 - **Components**: 
     - prediagnostic-be
@@ -175,7 +175,7 @@ Our NeumoDiagnostics system is structured in **six distinct layers**, each with 
 
 ---
 
-#### 📨 **Layer 4: Asynchronous Communication**
+##### 📨 **Layer 4: Asynchronous Communication**
 - **Purpose**: Non-blocking message handling
 - **Technology**: 🐰 RabbitMQ (Message Broker)
 - **Relations**: 
@@ -185,7 +185,7 @@ Our NeumoDiagnostics system is structured in **six distinct layers**, each with 
 
 ---
 
-#### 💾 **Layer 5: Data**
+##### 💾 **Layer 5: Data**
 - **Purpose**: Data storage and integrity management
 - **Components**: 
   - prediagnostic-db
@@ -196,7 +196,7 @@ Our NeumoDiagnostics system is structured in **six distinct layers**, each with 
 
 ---
 
-#### 🌐 **Layer 6: External Communication**
+##### 🌐 **Layer 6: External Communication**
 - **Purpose**: Integration with external services
 - **Services**: 📧 Mailgun (Email API Platform)
 - **Relations**: 
@@ -204,7 +204,7 @@ Our NeumoDiagnostics system is structured in **six distinct layers**, each with 
   - Handles communication with third-party services
   - Enables email notifications and external integrations
 
-### ***Description of architectural patterns used***
+#### **🏛️ Description of architectural patterns used**
 As we saw in the c&c view, we implemented several software architectural patterns, now we are going to check them in our layered view in order to have a better understand.
 
 **T6 Layered pattern**: This organizational pattern organize our system in 6 layers (the one´s that are described above). Each layer must follow a hierarchical order.
@@ -234,7 +234,7 @@ As you can see there are logic layers inside each component
 
 </div>
 
-**🎯 Description of Architectural Elements and Relations:**
+#### **🎯 Description of Architectural Elements and Relations:**
 - This view decomposes the system into implementation units (modules and submodules) and shows a pure “is part of” hierarchy. Each module encapsulates a specific set of functionalities, and submodules represent finer components within those modules.
 
 - Modules and submodules (from the diagram) with their functionalities and implementation mapping to the repository under `Desarrollo/`:
