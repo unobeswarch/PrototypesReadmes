@@ -162,7 +162,18 @@ Our NeumoDiagnostics system is structured in **six distinct layers**, each with 
   - Handles communication with third-party services
   - Enables email notifications and external integrations
 
+### ***Description of architectural patterns used***
+As we saw in the c&c view, we implemented several software architectural patterns, now we are going to check them in our layered view in order to have a better understand.
 
+**T6 Layered pattern**: This organizational pattern organize our system in 6 layers (the one´s that are described above). Each layer must follow a hierarchical order.
+
+**API Gateway Pattern**: This communication pattern is located at our Synchronous Layer (the second one from top to bottom). It acts as an intermediary between clients and a collection of our backend microservices and follows a hierarchy level.
+
+**Broker pattern**:This communication pattern (asynchronous) is located in our Asynchronous Communication layer. However, we need to make a clarification here. As we know, this pattern is usually built with producer and consumer components, but the component that belongs to this layer is the broker — not the other two.
+
+
+###  **Logic Layers**
+As you can see there are logic layers inside each component
 **🏛️ Description of Architectural Patterns Used:**
 - Layered architecture implementation
 - Separation of concerns principles
