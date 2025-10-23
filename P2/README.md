@@ -108,20 +108,61 @@ This view describes runtime components, the interfaces they provide/require, and
 
 ---
 
-### �🚀 **Deployment Structure**
+### 🚀 **Deployment Structure**
 
 #### 🌐 **Deployment View**
 *Infrastructure and deployment configuration overview*
 
+<div align="center">
 
-**🎯 Description of Architectural Elements and Relations:**
-- Hardware and software environment mapping
-- Network topology and communication paths
-- Resource allocation and distribution
+![Deployment View](./images/deployment.png)
 
-**🏛️ Description of Architectural Patterns Used:**
-- Deployment strategies and patterns
-- Scalability and availability considerations
+</div>
+
+#### **🎯 Description of Architectural Elements and Relations:**
+This view describes how the system is packaged and executed using Docker Compose on a single host. All containers share Docker’s default bridge network, enabling service-to-service communication by DNS name (the Compose service name). External clients access the stack through host-exposed ports.
+
+- Runtime environment
+	- Orchestration: Docker Compose
+	- Network: default bridge network (private). Services resolve each other by name and communicate over the internal network. Host-only ingress is via published ports.
+
+- Containers (services) and exposed ports (host:container)
+	- web-front-end (Next.js UI): 3000:3000
+	- api-gateway (Go, API Gateway Pattern): 8080:8080
+	- auth-be (Go, Authentication Service): 8081:8081
+	- prediagnostic-be (Python, Prediagnostic API): 8000:8000
+	- message_producer (Go, AMQP producer): 8082:8082
+	- notification-be (Python, AMQP consumer + SMTP)
+	- message-broker (RabbitMQ): 5672:5672 (AMQP), 15672:15672 (management UI)
+	- auth-db (PostgreSQL 15): 5432:5432
+	- prediagnostic-db (MongoDB): 27017:27017
+
+- Data stores and initialization
+	- auth-db uses an initialization script mounted at `/docker-entrypoint-initdb.d/inicializacion_auth_db.sql` to seed the schema.
+	- prediagnostic-db runs as a plain MongoDB instance.
+	- Radiography Image Storage and Profile Image Storage are currently implicit (filesystem inside `prediagnostic-be` and `auth-be` containers). As configured, these are ephemeral; persistence across container rebuilds would require named volumes or bind mounts.
+
+- Service dependencies and communication paths
+	- api-gateway → auth-be, prediagnostic-be, message_producer over HTTP (internal network).
+	- prediagnostic-be → prediagnostic-db (MongoDB driver).
+	- auth-be → auth-db (PostgreSQL driver).
+	- message_producer → message-broker (AMQP) publishes notification requests.
+	- notification-be ← message-broker (AMQP) consumes messages and sends emails via SMTP (Mailgun, external).
+	- Clients (web-front-end and CLI) access only api-gateway from outside through the mapped host ports.
+
+- Compose attributes relevant to ordering
+	- depends_on used for api-gateway → auth-db and prediagnostic-be → prediagnostic-db to ensure DBs start before dependent services. Application-level retries are still recommended for robustness.
+
+#### **🏛️ Description of Architectural Patterns Used:**
+- Container-per-Service: each component runs in its own container with independent build context.
+- Database-per-Service: `auth-db` (PostgreSQL) and `prediagnostic-db` (MongoDB) are dedicated to their owning services.
+- API Gateway Pattern: `api-gateway` is the single ingress for synchronous traffic (REST/GraphQL), isolating internal topology.
+- Broker Pattern: asynchronous integration via RabbitMQ decouples producers (`message_producer`) from consumers (`notification-be`).
+- Private Network / Internal-only Services: all inter-service calls occur on the Docker bridge network; only selected ports are published to the host.
+- Configuration as Code: environment is declared in `docker-compose.yml`; `notification-be` reads configuration from an `.env` file; `auth-db` is initialized via a mounted SQL script.
+
+Scalability and availability considerations
+- Persistence: introduce named volumes for Radiography/Profile image storage to ensure durability across container restarts and deploys.
 
 ---
 
@@ -204,7 +245,7 @@ Our NeumoDiagnostics system is structured in **six distinct layers**, each with 
   - Handles communication with third-party services
   - Enables email notifications and external integrations
 
-### 🏛️ **Description of architectural patterns used**
+#### 🏛️ **Description of architectural patterns used**
 As we saw in the c&c view, we implemented several software architectural patterns, now we are going to check them in our layered view in order to have a better understand.
 
 **T6 Layered pattern**: This organizational pattern organize our system in 6 layers (the one´s that are described above). Each layer must follow a hierarchical order.
@@ -214,7 +255,7 @@ As we saw in the c&c view, we implemented several software architectural pattern
 **Broker pattern**:This communication pattern (asynchronous) is located in our Asynchronous Communication layer. However, we need to make a clarification here. As we know, this pattern is usually built with producer and consumer components, but the component that belongs to this layer is the broker — not the other two.
 
 
-###  🧠 **Logic Layers**
+#### 🧠 **Logic Layers**
 As you can see, there are logic layers within each component. In almost all components, we tried to build them using a Clean Architecture approach as the foundation for managing each component’s logic.
 
 <div align="center">
@@ -291,3 +332,83 @@ Now, we’re going to briefly explain the responsibility of each layer. This exp
 	- Communicate the functional structure to newcomers in digestible chunks (modules → submodules → functionalities).
 	- Provide input for work assignment by module boundaries.
 	- Reason about the impact and localization of changes (tree structure enables targeting the affected module/submodule without cross-module edits).
+
+# 🚀 **Local Deployment Instructions**
+
+*Follow these steps to deploy the NeumoDiagnostics system locally on your machine*
+
+</div>
+
+---
+
+## 📋 **Prerequisites**
+
+<div align="center">
+
+> ⚠️ **Important**: Ensure you have the following requirements installed before proceeding
+
+</div>
+
+<table>
+<tr>
+<td align="center" width="25%">
+<img src="https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white" alt="Docker">
+<br><strong>Docker Desktop</strong>
+<br><a href="https://www.docker.com/products/docker-desktop">📥 Download</a>
+</td>
+<td align="center" width="25%">
+<img src="https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=git&logoColor=white" alt="Git">
+<br><strong>Git</strong>
+<br><a href="https://git-scm.com/">📥 Download</a>
+</td>
+<td align="center" width="25%">
+<img src="https://img.shields.io/badge/Terminal-000000?style=for-the-badge&logo=gnometerminal&logoColor=white" alt="Terminal">
+<br><strong>Terminal Access</strong>
+<br>Command Prompt / WSL
+</td>
+<td align="center" width="25%">
+<img src="https://img.shields.io/badge/Linux-FCC624?style=for-the-badge&logo=linux&logoColor=black" alt="Linux">
+<br><strong>Linux Environment</strong>
+<br>Native or WSL
+</td>
+</tr>
+</table>
+
+---
+
+## �️ **Step-by-Step Setup**
+
+### 1️⃣ **Clone the Repository**
+
+<div align="center">
+
+**📁 Repository:** [`unobeswarch/NeumoDiagnostics-Docker`](https://github.com/unobeswarch/NeumoDiagnostics-Docker.git)
+
+</div>
+
+```bash
+# Clone the NeumoDiagnostics Docker repository
+git clone https://github.com/unobeswarch/NeumoDiagnostics-Docker.git
+```
+
+### 2️⃣ **Navigate to Project Directory**
+
+```bash
+# Enter the project directory
+cd NeumoDiagnostics-Docker
+```
+
+### 3️⃣ **Setup Docker Environment**
+
+> 🐧 **Note**: Open a terminal in your Linux distribution (you can use WSL on Windows)
+
+```bash
+# Navigate to the docker configuration folder and type
+docker-compose up --build
+```
+
+---
+
+<div align="center">
+
+### 🎉 **Ready to Deploy!**
