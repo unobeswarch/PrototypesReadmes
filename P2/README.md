@@ -53,19 +53,62 @@ Our NeumoDiagnostics system employs multiple architectural views to ensure compr
 </div>
 
 **🎯 Description of Architectural Elements and Relations:**
-- Component interactions and communication patterns
-- Connector types and protocols used
-- Data flow between system components
+This view describes runtime components, the interfaces they provide/require, and the connectors between them (see figure). It focuses on communication paths and protocols rather than implementation internals.
+
+- Clients
+	- `web-front-end` (Next.js): UI for doctors and patients.
+		- Connectors: HTTP-GraphQL to `api-gateway` for data queries/mutations; HTTP-REST to `api-gateway` for authentication and file uploads when required by the flow.
+	- `cli-front-end` (Rust): Command-line client as a secondary interface.
+		- Connectors: HTTP-REST to `api-gateway`.
+
+- Gateway and orchestration
+	- `api-gateway` (Go): Single entry point, request validation, composition, and orchestration.
+		- Provided interfaces: `/query` (GraphQL), REST endpoints for auth and simple listings.
+		- Required connectors: HTTP-REST to `auth-be`, `prediagnostic-be`, and `message_producer`.
+
+- Backend services
+	- `auth-be` (Go): Identity and session services.
+		- Provided: REST endpoints for login, logout, registration, profile image upload.
+		- Required connectors: PostgreSQL driver to `auth-db`; File Storage Driver to `Profile Image Storage`.
+	- `prediagnostic-be` (Python): Imaging and (pre)diagnostic workflows.
+		- Provided: REST endpoints for radiograph upload, prediction, case queries, and diagnosis registration.
+		- Required connectors: MongoDB driver to `prediagnostic-db`; File Storage Driver to `Radiography Image Storage`.
+	- `message_producer` (Go): Publishes domain messages.
+		- Provided: REST endpoint used by `api-gateway` to request a notification.
+		- Required connectors: AMQP to `message-broker`.
+	- `notification-be` (Go): Asynchronous notifications consumer.
+		- Provided: Background consumer.
+		- Required connectors: AMQP subscription to `message-broker`; SMTP to `Mailgun` (external provider).
+
+- Data stores and external services
+	- `auth-db` (PostgreSQL): identity store accessed only by `auth-be` via DB driver.
+	- `prediagnostic-db` (MongoDB): clinical documents accessed only by `prediagnostic-be` via MongoDB driver.
+	- `message-broker` (AMQP): decouples producer and consumer via queues/topics.
+	- `Mailgun` (SMTP): external email service used by `notification-be`.
+	- `Radiography Image Storage` and `Profile Image Storage`: binary storage behind file drivers used by `prediagnostic-be` and `auth-be` respectively.
+
+- Connector summary and directionality
+	- HTTP-GraphQL: `web-front-end → api-gateway`.
+	- HTTP-REST: `web-front-end → api-gateway`, `cli-front-end → api-gateway`, `api-gateway → (auth-be | prediagnostic-be | message_producer)`.
+	- AMQP: `message_producer → message-broker → notification-be`.
+	- SMTP: `notification-be → Mailgun`.
+	- DB drivers: `auth-be → auth-db (PostgreSQL)`, `prediagnostic-be → prediagnostic-db (MongoDB)`.
+	- File drivers: `prediagnostic-be → Radiography Image Storage`, `auth-be → Profile Image Storage`.
 
 **🏛️ Description of Architectural Styles and Patterns Used:**
-- Architectural patterns implemented in the system
-- Design decisions and their rationale
+- **Client–Server:** browsers/CLI act as clients of the `api-gateway` server over HTTP.
+- **API Gateway Pattern:** `api-gateway` exposes a unified surface for multiple backends and tailors responses for the UI (GraphQL + REST).
+- **Layered Style (tiers):** Presentation (clients), Communication (gateway), Logic (backends), Data (datastores), Asynchronous (broker), and External (Mailgun). Connectors respect top-down usage between adjacent tiers.
+- **Service-Based:** `auth-be`, `prediagnostic-be`, `notification-be`, and `message_producer` are independently deployable services with well-defined interfaces.
+- **Broker Pattern (mediated messaging):** `message_producer` publishes messages to `message-broker`, `notification-be` consumes; the broker decouples producers and consumers and enables retry/DLQ.
+- **GraphQL for client composition:** `web-front-end` queries only required fields via `/query` to avoid over-/under-fetching.
+- **REST for transactional and internal calls:** stable contracts for authentication, uploads, predictions, and listings.
+- **Externalized services via adapters:** storage drivers for images and SMTP integration with Mailgun decouple infrastructure concerns from core logic.
+- **Security patterns:** JWT-based session propagation at the gateway and downstream authorization checks in services (enforced via REST/GraphQL middleware).
 
 ---
 
-### 🚀 **Deployment Structure**
-
-
+### �🚀 **Deployment Structure**
 
 #### 🌐 **Deployment View**
 *Infrastructure and deployment configuration overview*
@@ -84,15 +127,14 @@ Our NeumoDiagnostics system employs multiple architectural views to ensure compr
 
 ### 📚 **Layered Structure**
 
+#### 🎂 **Layered View**
+*Next you can look the layered view, we recommend you to make zoom to each one of the layers to view what components belong to each one and view the logic of each component.*
+
 <div align="center">
 
 ![Layered Structure](./images/layers.png)
 
 </div>
-
-#### 🎂 **Layered View**
-Next you can look the layered view, we recommend you to make zoom to each one of the layers to view what components belong to each one and view the logic of each component.
-
 
 **🎯 Description of Architectural Elements and Relations:**
 
@@ -100,7 +142,7 @@ Our NeumoDiagnostics system is structured in **six distinct layers**, each with 
 
 ---
 
-### 🖼️ **Layer 1: Presentation**
+#### 🖼️ **Layer 1: Presentation**
 - **Purpose**: User interface and interaction management
 - **Components**: 
   - 🌐 Web Front-end
@@ -109,7 +151,7 @@ Our NeumoDiagnostics system is structured in **six distinct layers**, each with 
 
 ---
 
-### 🔄 **Layer 2: Synchronous Communication**
+#### 🔄 **Layer 2: Synchronous Communication**
 - **Purpose**: Real-time request routing and handling
 - **Key Component**: 🚪 API Gateway
 - **Relations**: 
@@ -119,7 +161,7 @@ Our NeumoDiagnostics system is structured in **six distinct layers**, each with 
 
 ---
 
-### ⚙️ **Layer 3: Logic**
+#### ⚙️ **Layer 3: Logic**
 - **Purpose**: Core business logic and system functionality
 - **Components**: 
     - prediagnostic-be
@@ -133,7 +175,7 @@ Our NeumoDiagnostics system is structured in **six distinct layers**, each with 
 
 ---
 
-### 📨 **Layer 4: Asynchronous Communication**
+#### 📨 **Layer 4: Asynchronous Communication**
 - **Purpose**: Non-blocking message handling
 - **Technology**: 🐰 RabbitMQ (Message Broker)
 - **Relations**: 
@@ -143,7 +185,7 @@ Our NeumoDiagnostics system is structured in **six distinct layers**, each with 
 
 ---
 
-### 💾 **Layer 5: Data**
+#### 💾 **Layer 5: Data**
 - **Purpose**: Data storage and integrity management
 - **Components**: 
   - prediagnostic-db
@@ -154,7 +196,7 @@ Our NeumoDiagnostics system is structured in **six distinct layers**, each with 
 
 ---
 
-### 🌐 **Layer 6: External Communication**
+#### 🌐 **Layer 6: External Communication**
 - **Purpose**: Integration with external services
 - **Services**: 📧 Mailgun (Email API Platform)
 - **Relations**: 
