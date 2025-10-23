@@ -204,7 +204,7 @@ Our NeumoDiagnostics system is structured in **six distinct layers**, each with 
   - Handles communication with third-party services
   - Enables email notifications and external integrations
 
-#### **🏛️ Description of architectural patterns used**
+### 🏛️ **Description of architectural patterns used**
 As we saw in the c&c view, we implemented several software architectural patterns, now we are going to check them in our layered view in order to have a better understand.
 
 **T6 Layered pattern**: This organizational pattern organize our system in 6 layers (the one´s that are described above). Each layer must follow a hierarchical order.
@@ -214,11 +214,32 @@ As we saw in the c&c view, we implemented several software architectural pattern
 **Broker pattern**:This communication pattern (asynchronous) is located in our Asynchronous Communication layer. However, we need to make a clarification here. As we know, this pattern is usually built with producer and consumer components, but the component that belongs to this layer is the broker — not the other two.
 
 
-###  **Logic Layers**
-As you can see there are logic layers inside each component
-**🏛️ Description of Architectural Patterns Used:**
-- Layered architecture implementation
-- Separation of concerns principles
+###  🧠 **Logic Layers**
+As you can see, there are logic layers within each component. In almost all components, we tried to build them using a Clean Architecture approach as the foundation for managing each component’s logic.
+
+<div align="center">
+
+![Layered Structure](./images/ca.png)
+
+</div>
+
+Now, we’re going to briefly explain the responsibility of each layer. This explanation will be general, since this approach is applied in almost all components.
+
+- **Presentation Layer (UI)** 🎨  
+  Handles user interaction and displays information.  
+  It sends user actions to the application layer.
+
+- **Application Layer (Services / Use Cases)** ⚙️  
+  Contains the business logic that coordinates entities and defines use cases.
+
+- **Domain Layer (Models / Entities)** 🧠  
+  Holds the core business rules and entities.  
+  It’s completely independent from external concerns.
+
+- **Infrastructure Layer** 🧩  
+  Implements technical details such as database access, APIs, message brokers, and external services.
+
+> **In short:** Infrastructure *implements*, Domain *defines*, Application *coordinates*, and Presentation *interacts*.
 
 ---
 
