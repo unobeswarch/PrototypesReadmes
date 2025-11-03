@@ -57,8 +57,8 @@ For this lab we used the **Component and Connector View** to represent/illustrat
 
 3. **Security Controls**
    - API Gateway as central access control point
-   - Data segment accessible only by authorized backend services
-   - Strict isolation between segments
+   - Databases accessible only through their respective services
+   - Network isolation through internal flag
    - Controlled communication paths
 
 ### Configuration Details
