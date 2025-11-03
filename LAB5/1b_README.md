@@ -20,7 +20,7 @@
 The Network Segmentation Pattern is a security architectural pattern that involves dividing a network into smaller segments or subnets to improve security and performance. This pattern helps control access between different parts of the system and limits the potential spread of security threats by creating isolated network zones for different types of components.
 
 ### Quality Scenario Addressed
-**Security Focus**: Confidentiality and Access Control
+- **Security Focus**: Confidentiality and Access Control
 - **Stimulus**: Potential unauthorized access attempts between different system components
 - **Response**: Network isolation prevents direct access to sensitive internal services through subnet segmentation
 - **Metric**: Complete isolation of internal services from public access, with controlled access only through designated entry points
@@ -65,22 +65,22 @@ For this lab we used the **Component and Connector View** to represent/illustrat
 
 ```yaml
 networks:
-  private:
-    ipam:
-      driver: default
-      config:
-        - subnet: 192.168.10.0/26    # Internal services network
-    internal: true                    # Ensures network isolation from external access
-    labels:
-      description: "Backend and Data Services Network"
+   private:
+      ipam:
+         driver: default
+         config:
+            - subnet: 192.168.10.0/26    # Internal services network
+      internal: true                    # Ensures network isolation from external access
+      labels:
+         description: "Backend and Data Services Network"
 
-  public:
-    ipam:
-      driver: default
-      config:
-        - subnet: 172.30.0.0/24      # External access network
-    labels:
-      description: "Frontend Public Access Network"
+   public:
+      ipam:
+         driver: default
+         config:
+            - subnet: 172.30.0.0/24      # External access network
+      labels:
+         description: "Frontend Public Access Network"
 ```
 
 This configuration:
@@ -95,25 +95,23 @@ In `docker-compose.yml` each service declares the networks it belongs to. Below 
 ```yaml
 services:
    api-gateway:
-      image: my-api-gateway:latest
+      build: ./api-gateway
+      container_name:  api-gateway
       ports:
          - "8080:8080"
+      depends_on:
+         - auth-db
       networks:
          - private
 
    web-front-end:
-      image: my-web-frontend:latest
+      build: ./web-front-end
+      container_name: web-front-end
       ports:
          - "3000:3000"
       networks:
          - private
          - public
-
-networks:
-   private:
-      external: false
-   public:
-      external: false
 ```
 
 Notes:
