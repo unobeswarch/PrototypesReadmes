@@ -27,67 +27,18 @@ The Network Segmentation Pattern is a security architectural pattern that involv
 
 ### Implementation Steps
 
-1. Network Definition and Segmentation
+1. Network definition
 
-   **Private Network (192.168.10.0/26)**
-   - Network Class: C
-   - Valid IP Range: 192.168.10.1 - 192.168.10.62
-   - Subnet Mask: 255.255.255.192
-   - Components Segmentation:
-   * Backend Segment (192.168.10.1 - 192.168.10.30)
-   * Data Segment (192.168.10.31 - 192.168.10.50)
-   * Frontend Segment (192.168.10.51 - 192.168.10.55)
-   * Others Segment (192.168.10.56 - 192.168.10.62)
-
-   **Public Network (172.30.0.0/24)**
-   - Network Class: B
-   - Valid IP Range: 172.30.0.1 - 172.30.0.254
-   - Subnet Mask: 255.255.255.0
+   The deployment uses two Docker networks defined in the docker compose: a single private subnet and a public subnet. The private network is defined as 192.168.10.0/26 and each container IP is automatically assigned from this range by the Docker Compose. The public network is 172.30.0.0/24 and is used only for services that need external exposure.
 
 2. Logical Service Organization
 
-   Backend Services Zone:
-   ```
-   Services in private network (192.168.10.1-30):
-   - API Gateway
-   - Prediagnostic Backend
-   - Authentication Backend
-   - Message Producer
-   - Message Broker
-   - Notification Backend
-   ```
+   - Private network (192.168.10.0/26): backend services, databases and the message broker. IP assignment inside this subnet is automatic; there are no predefined IP ranges or segments within the private network.
+   - Public network (172.30.0.0/24): used only by services that must be externally reachable (web front-end and CLI front-end). Those services are attached to both networks so they can reach internal components and also accept external connections.
 
-   Data Services Zone:
-   ```
-   Services in private network (192.168.10.31-50):
-   - Prediagnostic Database
-   - Authentication Database
-   ```
-
-   Frontend Services Zone:
-   ```
-   Dual-network services:
-   - Web Frontend
-   * Private network access (192.168.10.0/26)
-   * Public network access (172.30.0.0/24)
-   - CLI Frontend
-   * Private network access (192.168.10.0/26)
-   * Public network access (172.30.0.0/24)
-   ```
-
-   Network Verification Results:
-   ```
-   Private Network (192.168.10.0/26):
-   - All backend services successfully isolated
-   - Databases properly segmented
-   - Frontend services with internal access
-   - Network marked as internal: true
-
-   Public Network (172.30.0.0/24):
-   - Only frontend services present
-   - No direct access to backend services
-   - Network marked as internal: false
-   ```
+   Network verification highlights:
+   - The private network is marked `internal: true` so containers attached to it are not routable from the outside network by default.
+   - Only frontend services are exposed on the public network; backend services remain isolated on the private subnet.
 
 ### Architectural View
 
@@ -101,11 +52,8 @@ For this lab we used the **Component and Connector View** to represent/illustrat
    - Web and CLI frontends exposed to public network
    - Acts as entry point for user interactions
 
-2. **Private Network Segmentation (192.168.10.0/26)**
-   - Backend services isolated in dedicated segment
-   - Data tier secured in separate segment
-   - Frontend private interfaces in controlled segment
-   - Reserved segment for future expansion
+2. **Private Network (192.168.10.0/26)**
+   - The private network hosts backend services, databases and the message broker. There are no manual sub-segments defined inside this subnet; Docker Compose assigns IPs automatically within the range.
 
 3. **Security Controls**
    - API Gateway as central access control point
@@ -136,52 +84,60 @@ networks:
 ```
 
 This configuration:
-- Defines clear network boundaries
-- Implements network isolation through the `internal` flag
-- Uses descriptive labels for better documentation
-- Allows Docker to handle IP assignment dynamically
-- Maintains security through network segmentation
+- Defines the two subnets used by the deployment
+- Keeps backend services isolated by using `internal: true` on the private network
+- Allows Docker to assign container IPs automatically within the private subnet
 
-### Results and Improvements
+### Results and improvements
 
-1. Enhanced Security through Segmentation:
-   - Backend services (192.168.10.1-30): Isolated core services
-   - Data tier (192.168.10.31-50): Protected database systems
-   - Frontend segment (192.168.10.51-55): Controlled public access
-   - Support services (192.168.10.56-62): Isolated maintenance zone
+1. Network placement and addressing
+   - The deployment uses two networks only: a private network and a public network. There are no manually defined internal segments inside the private subnet.
+   - Container IPs are assigned automatically by Docker Compose within the configured subnets; this deployment does not rely on fixed/static IP allocations.
 
-2. Multi-layered Security Benefits:
-   - Physical network separation between public and private networks
-   - Logical segmentation within the private network
-   - Controlled inter-segment communication
-   - Reduced attack surface through precise IP assignments
+2. Security benefits
+   - The private network is marked `internal: true`, which ensures that internal services are isolated from outside networks by default.
+   - The public network is used exclusively by services that must be externally reachable (web front-end and CLI front-end).
 
-3. Access Control Improvements:
-   - Only frontend services have dual-network presence
-   - All internal services are completely isolated from public access
-   - API Gateway serves as the single entry point for backend services
-   - Databases are restricted to the data segment
+3. Access control and exposure
+   - Frontend services have dual-network presence so they can reach internal services while also accepting external requests through the host.
+   - The API Gateway is the intended central access point for backend functionality when exposure is required.
+   - To permit external access to a service, the host port must be published in `docker-compose.yml`.
+
+#### Connectivity tests and observations
+
+We performed a set of connectivity tests from a different machine on the same wi-fi network to verify access to services running in the Docker host. Results and key observations follow.
+
+- Test A — API Gateway (HTTP POST /register)
+   - Request URL used from the remote machine: `http://192.168.1.6:8080/register`.
+   - Result: Two contrasting outcomes were observed:
+      - When subnetting / network isolation was not applied (no `internal` enforcement), the gateway responded `201 Created` with a JSON body confirming registration — the host port was reachable from the remote machine.
+
+         ![API Gateway - No Subnetting](./images/1b_ConnectionAPIGatewayWithoutSubnetting.png)
+
+      - When subnetting / network isolation was enabled (private network marked `internal: true`), the client received `ECONNREFUSED` (connection refused) because the service became inaccessible from the remote host.
+         
+         ![API Gateway - Subnetting](./images/1b_ConnectionAPIGatewayWithSubnetting.png)
+
+   - Notes: the `ECONNREFUSED` in this scenario is expected when the private network is isolated. It indicates that the host/network configuration prevented access from the remote machine (correct behavior when isolation is enabled). If isolation is not intended, verify port publishing and host firewall rules.
+
+- Test B — PostgreSQL (JDBC / DB client)
+   - Connection target: `192.168.1.6:5432` (host LAN IP and published Postgres port).
+   - Result: Two contrasting outcomes were observed:
+      - When subnetting / network isolation was not applied, the DB client connected successfully (JDBC / DBeaver connection test succeeded) using `192.168.1.6:5432`.
+
+         ![DB connection - No Subnetting](./images/1b_ConnectionDBWithoutSubnetting.png)
+
+      - When subnetting / network isolation (private `internal: true`) was enabled, the connection attempt returned “Connection refused” because the DB was not reachable from the remote machine.
+         
+         ![DB connection - Subnetting](./images/1b_ConnectionDBwithSubnetting.png)
+
+   - Notes: this demonstrates the effect of enabling the private network isolation: it prevents remote access even if the port is mapped, depending on host/network rules. To allow remote DB access, ensure the service is intentionally published on the host and firewall rules permit the connection.
+
+Screenshots were taken during the tests showing a successful `201 Created` response, an `ECONNREFUSED` Postman error, a successful DB connection test, and a later DB connection refusal.
 
 ### Recommendations
 
-1. Network Security Monitoring:
-   - Implement network flow monitoring between segments
-   - Set up intrusion detection at segment boundaries
-   - Regular security scanning of both public and private networks
+- Properly define the subnets in `docker-compose.yml` (e.g., `192.168.10.0/26` and `172.30.0.0/24`) so Docker assigns IPs automatically and the topology is clear.
+- Emphasize and keep the `internal: true` flag on the private network — without this flag components could be accessible from unwanted networks.
 
-2. Access Control Management:
-   - Maintain strict firewall rules between segments
-   - Regular audit of network access patterns
-   - Document all inter-segment communication requirements
-
-3. Security Maintenance:
-   - Regular review of IP assignments within segments
-   - Periodic validation of network isolation
-   - Update segment boundaries based on new service requirements
-   - Implement automated network security testing
-
-4. Additional Security Measures:
-   - Network encryption between segments
-   - Strong authentication for cross-segment access
-   - Detailed logging of all inter-segment communication
-   - Regular security training for development team
+These recommendations are already implemented in the current configuration of our system.
