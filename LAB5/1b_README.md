@@ -44,7 +44,7 @@ The Network Segmentation Pattern is a security architectural pattern that involv
 
 For this lab we used the **Component and Connector View** to represent/illustrate the different network subnets and what components are located in each subnet:
 
-![Component and Connector View - Subnet Representation ](./images/1b_cycview.png)
+![Component and Connector View - Subnet Representation ](./1b_images/1b_cycview.png)
 
 #### Network Segmentation Details
 
@@ -57,8 +57,8 @@ For this lab we used the **Component and Connector View** to represent/illustrat
 
 3. **Security Controls**
    - API Gateway as central access control point
-   - Data segment accessible only by authorized backend services
-   - Strict isolation between segments
+   - Databases accessible only through their respective services
+   - Network isolation through internal flag
    - Controlled communication paths
 
 ### Configuration Details
@@ -88,6 +88,38 @@ This configuration:
 - Keeps backend services isolated by using `internal: true` on the private network
 - Allows Docker to assign container IPs automatically within the private subnet
 
+How components are attached to networks (example)
+
+In `docker-compose.yml` each service declares the networks it belongs to. Below is a minimal example showing a backend service attached only to the private network and a web frontend attached to both private and public networks:
+
+```yaml
+services:
+   api-gateway:
+      image: my-api-gateway:latest
+      ports:
+         - "8080:8080"
+      networks:
+         - private
+
+   web-front-end:
+      image: my-web-frontend:latest
+      ports:
+         - "3000:3000"
+      networks:
+         - private
+         - public
+
+networks:
+   private:
+      external: false
+   public:
+      external: false
+```
+
+Notes:
+- A service listed under `private` is only attached to the internal subnet and will not be reachable via the public network.
+- A service listed under both `private` and `public` can access internal services and also accept external requests through the host's published ports.
+
 ### Results and improvements
 
 1. Network placement and addressing
@@ -112,11 +144,11 @@ We performed a set of connectivity tests from a different machine on the same wi
    - Result: Two contrasting outcomes were observed:
       - When subnetting / network isolation was not applied (no `internal` enforcement), the gateway responded `201 Created` with a JSON body confirming registration — the host port was reachable from the remote machine.
 
-         ![API Gateway - No Subnetting](./images/1b_ConnectionAPIGatewayWithoutSubnetting.png)
+         ![API Gateway - No Subnetting](./1b_images/1b_ConnectionAPIGatewayWithoutSubnetting.png)
 
       - When subnetting / network isolation was enabled (private network marked `internal: true`), the client received `ECONNREFUSED` (connection refused) because the service became inaccessible from the remote host.
          
-         ![API Gateway - Subnetting](./images/1b_ConnectionAPIGatewayWithSubnetting.png)
+         ![API Gateway - Subnetting](./1b_images/1b_ConnectionAPIGatewayWithSubnetting.png)
 
    - Notes: the `ECONNREFUSED` in this scenario is expected when the private network is isolated. It indicates that the host/network configuration prevented access from the remote machine (correct behavior when isolation is enabled). If isolation is not intended, verify port publishing and host firewall rules.
 
@@ -125,11 +157,11 @@ We performed a set of connectivity tests from a different machine on the same wi
    - Result: Two contrasting outcomes were observed:
       - When subnetting / network isolation was not applied, the DB client connected successfully (JDBC / DBeaver connection test succeeded) using `192.168.1.6:5432`.
 
-         ![DB connection - No Subnetting](./images/1b_ConnectionDBWithoutSubnetting.png)
+         ![DB connection - No Subnetting](./1b_images/1b_ConnectionDBWithoutSubnetting.png)
 
       - When subnetting / network isolation (private `internal: true`) was enabled, the connection attempt returned “Connection refused” because the DB was not reachable from the remote machine.
          
-         ![DB connection - Subnetting](./images/1b_ConnectionDBwithSubnetting.png)
+         ![DB connection - Subnetting](./1b_images/1b_ConnectionDBwithSubnetting.png)
 
    - Notes: this demonstrates the effect of enabling the private network isolation: it prevents remote access even if the port is mapped, depending on host/network rules. To allow remote DB access, ensure the service is intentionally published on the host and firewall rules permit the connection.
 
