@@ -398,7 +398,7 @@ git clone https://github.com/unobeswarch/NeumoDiagnostics-Docker.git
 cd NeumoDiagnostics-Docker
 ```
 
-### **Create certificates for Secure Channel Pattern
+### 3️⃣ **Create certificates for Secure Channel Pattern**
 
 Go to NeumoDiagnostics-Docker/reverse-proxy and open a terminal to execute the following command:
 
