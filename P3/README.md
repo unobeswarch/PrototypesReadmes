@@ -333,15 +333,202 @@ Now, we’re going to briefly explain the responsibility of each layer. This exp
 	- Provide input for work assignment by module boundaries.
 	- Reason about the impact and localization of changes (tree structure enables targeting the affected module/submodule without cross-module edits).
 
-# 🚀 **Local Deployment Instructions**
+---
 
-*Follow these steps to deploy the NeumoDiagnostics system locally on your machine*
+## 🎯 **Quality Attributes**
+
+### 🔒 **Security**
+
+#### **Security Scenarios**
+
+Our system implements four critical security scenarios to ensure data protection, user authentication, and secure communications:
+
+##### **Scenario 1: Network Segmentation**
+
+<div align="center">
+
+![Network Segmentation Scenario](./images/Escenario%20-%20Network%20Segmentation%20Pattern.png)
 
 </div>
 
+**Description:**
+- **Source (Fuente):** Person using their own computer
+- **Stimulus (Estímulo):** Direct request sent to some component of the private network (Back-end and databases)
+- **Artifact (Artefacto):** Private network components (Back-end and databases)
+- **Environment (Ambiente):** System during its normal execution
+- **Response (Respuesta):** Request rejection
+- **Response Measure (Medición de la respuesta):** Number of requests made to private network components that have been rejected
+
+**Applied Pattern:** Network Segmentation Pattern
+
 ---
 
-## 📋 **Prerequisites**
+##### **Scenario 2: Reverse Proxy**
+
+<div align="center">
+
+![Reverse Proxy Scenario](./images/Escenario%20-%20Reverse%20Proxy.png)
+
+</div>
+
+**Description:**
+- **Source (Fuente):** External attacker or poorly maintained client
+- **Stimulus (Estímulo):** Multiple malicious requests attempting to access backend services and overload the API Gateway
+- **Artifact (Artefacto):** NginX configured as the single entry point
+- **Environment (Ambiente):** System during its normal execution
+- **Response (Respuesta):** The reverse proxy intercepts and blocks unauthorized access, filters and detects each request
+- **Response Measure (Medición de la respuesta):** The reverse proxy registers and rejects illegitimate access, maintains and protects healthy instances
+
+**Applied Pattern:** Reverse Proxy Pattern
+
+---
+
+##### **Scenario 3: Token Authentication (JWT)**
+
+<div align="center">
+
+![Token Authentication Scenario](./images/Escenario%20-%20Token%20Authentication.png)
+
+</div>
+
+**Description:**
+- **Source (Fuente):** User without a valid JWT token
+- **Stimulus (Estímulo):** Attempt to use any system functionality different from login or register
+- **Artifact (Artefacto):** Set of functionalities that require authentication
+- **Environment (Ambiente):** System during its normal execution
+- **Response (Respuesta):** Rejection of login or register service attempt and redirection to the dashboard corresponding to the missing valid JWT token
+- **Response Measure (Medición de la respuesta):** Number of requests rejected due to missing valid JWT token
+
+**Applied Pattern:** Token-Based Authentication (JWT)
+
+---
+
+##### **Scenario 4: Secure Channel (HTTPS/TLS)**
+
+<div align="center">
+
+![Secure Channel Scenario](./images/Escenario%20-%20Secure%20Channel.png)
+
+</div>
+
+**Description:**
+- **Source (Fuente):** User without a valid token
+- **Stimulus (Estímulo):** Attempt to intercept, read, or modify information transmitted between client and server during normal system communication
+- **Artifact (Artefacto):** Secure communication channel implemented with HTTPS/TLS between client and reverse proxy
+- **Environment (Ambiente):** System during its normal operation
+- **Response (Respuesta):** Protection of communication through TLS encryption and rejection of any interception or data manipulation attempts
+- **Response Measure (Medición de la respuesta):** Interception attempts blocked and traffic completely encrypted
+
+**Applied Pattern:** Secure Channel Pattern (HTTPS/TLS with Reverse Proxy)
+
+---
+
+#### **Applied Architectural Tactics**
+
+Our system implements multiple security tactics organized by their defensive objectives:
+
+##### **Resist Attacks**
+
+- **Authenticate Actor:** JWT-based authentication system validates user identity before granting access to protected resources. Implemented in `auth-be` service with token validation at the API Gateway level.
+
+- **Authorize Actors:** Role-based authorization checks ensure users can only access functionalities appropriate to their roles (doctors vs. patients). Enforced through middleware in the API Gateway and backend services.
+
+- **Limit Access:** Network segmentation isolates private components (backend services and databases) from direct external access. Only the API Gateway is exposed as the single entry point.
+
+- **Limit Exposure:** The API Gateway pattern minimizes the attack surface by exposing only necessary endpoints and hiding internal service topology from external clients.
+
+- **Encrypt Data:** TLS/HTTPS encryption protects all data in transit between clients and the reverse proxy, and between internal services when handling sensitive information.
+
+- **Separate Entities:** Microservices architecture separates concerns into independent services (`auth-be`, `prediagnostic-be`, `notification-be`), limiting the blast radius of potential security breaches.
+
+##### **React to Attacks**
+
+- **Revoke Access:** System can invalidate JWT tokens when suspicious activity is detected or when users log out, preventing further unauthorized access.
+
+**Detect Attacks**
+
+- **Verify Message Integrity:** API Gateway validates request structure and content before forwarding to backend services, detecting malformed or malicious payloads.
+
+**Recover from Attacks**
+
+- **Maintain Audit Trail:** System logs authentication attempts, authorization decisions, and critical operations for forensic analysis and compliance purposes.
+
+---
+
+#### **Applied Architectural Patterns**
+
+- **Network Segmentation Pattern:** Isolation of private network components from direct external access
+- **Reverse Proxy Pattern:** NginX as single entry point for filtering, load balancing, and security enforcement
+- **Token-Based Authentication Pattern:** JWT for secure session management and stateless authentication
+- **Secure Channel Pattern:** HTTPS/TLS encryption for all client-server communications
+
+
+
+---
+
+### ⚡ **Performance and Scalability**
+
+#### **Performance Scenarios**
+
+Our system implements performance and scalability scenarios to ensure optimal resource utilization and response times under varying load conditions:
+
+##### **Scenario 1: Load Balancer / Weighted Round-Robin**
+
+<div align="center">
+
+![Load Balancer Scenario](./images/Escenario%20-%20Load%20Balancer.png)
+
+</div>
+
+**📋 Description:**
+- **Source (Fuente):** 300 users
+- **Stimulus (Estímulo):** Sending 300 different requests in 1 second
+- **Artifact (Artefacto):** System
+- **Environment (Ambiente):** System during its normal execution
+- **Response (Respuesta):** Distribution of requests among the 3 API Gateway instances according to the Weighted Round-Robin algorithm
+- **Response Measure (Medición de la respuesta):** Number of requests handled by each API Gateway instance
+
+**Applied Pattern:** Load Balancer
+
+---
+
+#### **Applied Architectural Tactics**
+
+Our system implements performance tactics to optimize resource utilization and response times:
+
+**Control Resource Demand**
+
+- **Manage Work Requests:** The system processes incoming requests efficiently through the load balancer, distributing workload across multiple instances.
+
+**Manage Resources**
+
+- **Increase Resources:** Multiple API Gateway instances (3 instances) are deployed to handle increased load and provide redundancy.
+- **Introduce Concurrency:** The Weighted Round-Robin algorithm distributes requests across multiple instances, enabling parallel processing of requests.
+- **Maintain Multiple Copies of Computations:** Three instances of the API Gateway run simultaneously to handle concurrent requests without blocking.
+- **Schedule Resources:** Weighted Round-Robin scheduling algorithm manages how requests are distributed among available API Gateway instances based on their weights and current load.
+
+---
+
+#### **Applied Architectural Patterns**
+
+- **Load Balancer Pattern:** Weighted Round-Robin algorithm distributes incoming requests across multiple API Gateway instances
+---
+
+#### **Performance Testing Analysis and Results**
+
+
+
+---
+
+## **Prototype**
+
+### **Instructions for Deploying the Software System Locally**
+
+*Follow these steps to deploy the NeumoDiagnostics system locally on your machine*
+
+---
+
+### 📋 **Prerequisites**
 
 <div align="center">
 
@@ -376,9 +563,9 @@ Now, we’re going to briefly explain the responsibility of each layer. This exp
 
 ---
 
-## �️ **Step-by-Step Setup**
+### 🛠️ **Step-by-Step Setup**
 
-### 1️⃣ **Clone the Repository**
+#### 1️⃣ **Clone the Repository**
 
 <div align="center">
 
@@ -391,14 +578,14 @@ Now, we’re going to briefly explain the responsibility of each layer. This exp
 git clone https://github.com/unobeswarch/NeumoDiagnostics-Docker.git
 ```
 
-### 2️⃣ **Navigate to Project Directory**
+#### 2️⃣ **Navigate to Project Directory**
 
 ```bash
 # Enter the project directory
 cd NeumoDiagnostics-Docker
 ```
 
-### 3️⃣ **Create certificates for Secure Channel Pattern**
+#### 3️⃣ **Create certificates for Secure Channel Pattern**
 
 Go to NeumoDiagnostics-Docker/reverse-proxy and open a terminal to execute the following command:
 
@@ -412,7 +599,7 @@ scripts\generate-certs.bat
 ```
 Then, return to NeumoDiagnostics-Docker folder
 
-### 4️⃣ **Setup Docker Environment**
+#### 4️⃣ **Setup Docker Environment**
 
 > 🐧 **Note**: Open a terminal in your Linux distribution (you can use WSL on Windows)
 
@@ -425,4 +612,6 @@ docker-compose up --build
 
 <div align="center">
 
-### 🎉 **Ready to Deploy!**
+#### 🎉 **Ready to Deploy!**
+
+</div>
