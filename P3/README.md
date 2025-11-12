@@ -398,7 +398,21 @@ git clone https://github.com/unobeswarch/NeumoDiagnostics-Docker.git
 cd NeumoDiagnostics-Docker
 ```
 
-### 3️⃣ **Setup Docker Environment**
+### **Create certificates for Secure Channel Pattern
+
+Go to NeumoDiagnostics-Docker/reverse-proxy and open a terminal to execute the following command:
+
+```bash
+# Linux
+./scripts/generate-certs.sh
+```
+```bash
+# Windows
+scripts\generate-certs.bat
+```
+Then, return to NeumoDiagnostics-Docker folder
+
+### 4️⃣ **Setup Docker Environment**
 
 > 🐧 **Note**: Open a terminal in your Linux distribution (you can use WSL on Windows)
 
