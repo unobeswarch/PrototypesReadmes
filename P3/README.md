@@ -57,12 +57,18 @@ This view describes runtime components, the interfaces they provide/require, and
 
 - Clients
 	- `web-front-end` (Next.js): UI for doctors and patients.
-		- Connectors: HTTP-GraphQL to `api-gateway` for data queries/mutations; HTTP-REST to `api-gateway` for authentication and file uploads when required by the flow.
+		- Connectors: HTTP-REST to `reverse-proxy` for authentication and file uploads; HTTP-GRAPHQL to `reverse-proxy` for data queries/mutations.
 	- `cli-front-end` (Rust): Command-line client as a secondary interface.
-		- Connectors: HTTP-REST to `api-gateway`.
+		- Connectors: HTTP-REST to `reverse-proxy`.
+
+- Load Balancer and Security Layer
+	- `reverse-proxy` (NginX): Acts as load balancer and security gateway. Single entry point for all client requests.
+		- Provided interfaces: HTTP/HTTPS endpoints for REST and GraphQL.
+		- Required connectors: HTTP-REST and HTTP-GRAPHQL to multiple `api-gateway` instances (load balanced).
+		- Functions: SSL/TLS termination, request filtering, load distribution across API Gateway instances.
 
 - Gateway and orchestration
-	- `api-gateway` (Go): Single entry point, request validation, composition, and orchestration.
+	- `api-gateway` [1,2,3] (Go): Multiple instances for high availability. Single entry point for backend services, request validation, composition, and orchestration.
 		- Provided interfaces: `/query` (GraphQL), REST endpoints for auth and simple listings.
 		- Required connectors: HTTP-REST to `auth-be`, `prediagnostic-be`, and `message_producer`.
 
@@ -75,7 +81,7 @@ This view describes runtime components, the interfaces they provide/require, and
 		- Required connectors: MongoDB driver to `prediagnostic-db`; File Storage Driver to `Radiography Image Storage`.
 	- `message_producer` (Go): Publishes domain messages.
 		- Provided: REST endpoint used by `api-gateway` to request a notification.
-		- Required connectors: AMQP to `message-broker`.
+		- Required connectors: AMQP to `message-broker`; File Storage Driver for temporary storage.
 	- `notification-be` (Go): Asynchronous notifications consumer.
 		- Provided: Background consumer.
 		- Required connectors: AMQP subscription to `message-broker`; SMTP to `Mailgun` (external provider).
@@ -88,23 +94,27 @@ This view describes runtime components, the interfaces they provide/require, and
 	- `Radiography Image Storage` and `Profile Image Storage`: binary storage behind file drivers used by `prediagnostic-be` and `auth-be` respectively.
 
 - Connector summary and directionality
-	- HTTP-GraphQL: `web-front-end → api-gateway`.
-	- HTTP-REST: `web-front-end → api-gateway`, `cli-front-end → api-gateway`, `api-gateway → (auth-be | prediagnostic-be | message_producer)`.
+	- HTTP-REST: `cli-front-end → reverse-proxy → api-gateway [1,2,3]`.
+	- HTTP-GRAPHQL: `web-front-end → reverse-proxy → api-gateway [1,2,3]`.
+	- HTTP-REST: `web-front-end → reverse-proxy → api-gateway [1,2,3]` (for auth and uploads).
+	- HTTP-REST (internal): `api-gateway → (auth-be | prediagnostic-be | message_producer)`.
 	- AMQP: `message_producer → message-broker → notification-be`.
 	- SMTP: `notification-be → Mailgun`.
 	- DB drivers: `auth-be → auth-db (PostgreSQL)`, `prediagnostic-be → prediagnostic-db (MongoDB)`.
-	- File drivers: `prediagnostic-be → Radiography Image Storage`, `auth-be → Profile Image Storage`.
+	- File drivers: `prediagnostic-be → Radiography Image Storage`, `auth-be → Profile Image Storage`, `message_producer → File Storage`.
 
 #### **🏛️ Description of Architectural Styles and Patterns Used:**
-- **Client–Server:** browsers/CLI act as clients of the `api-gateway` server over HTTP.
-- **API Gateway Pattern:** `api-gateway` exposes a unified surface for multiple backends and tailors responses for the UI (GraphQL + REST).
-- **Layered Style (tiers):** Presentation (clients), Communication (gateway), Logic (backends), Data (datastores), Asynchronous (broker), and External (Mailgun). Connectors respect top-down usage between adjacent tiers.
+- **Client–Server:** browsers/CLI act as clients connecting to the system through the reverse proxy.
+- **Reverse Proxy Pattern:** NginX serves as the single entry point, providing SSL/TLS termination, request filtering, and load balancing capabilities.
+- **Load Balancer Pattern:** Weighted Round-Robin algorithm distributes requests across multiple `api-gateway` instances [1,2,3] for high availability and performance.
+- **API Gateway Pattern:** Multiple `api-gateway` instances expose a unified surface for multiple backends and tailor responses for the UI (GraphQL + REST).
+- **Layered Style (tiers):** Presentation (clients), Security/Load Balancing (reverse-proxy), Communication (gateway), Logic (backends), Data (datastores), Asynchronous (broker), and External (Mailgun). Connectors respect top-down usage between adjacent tiers.
 - **Service-Based:** `auth-be`, `prediagnostic-be`, `notification-be`, and `message_producer` are independently deployable services with well-defined interfaces.
 - **Broker Pattern (mediated messaging):** `message_producer` publishes messages to `message-broker`, `notification-be` consumes; the broker decouples producers and consumers and enables retry/DLQ.
 - **GraphQL for client composition:** `web-front-end` queries only required fields via `/query` to avoid over-/under-fetching.
 - **REST for transactional and internal calls:** stable contracts for authentication, uploads, predictions, and listings.
 - **Externalized services via adapters:** storage drivers for images and SMTP integration with Mailgun decouple infrastructure concerns from core logic.
-- **Security patterns:** JWT-based session propagation at the gateway and downstream authorization checks in services (enforced via REST/GraphQL middleware).
+- **Security patterns:** SSL/TLS at reverse proxy level, JWT-based session propagation at the gateway and downstream authorization checks in services (enforced via REST/GraphQL middleware).
 
 ---
 
@@ -179,80 +189,97 @@ Scalability and availability considerations
 
 #### **🎯 Description of Architectural Elements and Relations:**
 
-Our NeumoDiagnostics system is structured in **six distinct layers**, each with specific responsibilities and well-defined interactions:
+Our NeumoDiagnostics system is structured in **seven distinct layers** (tiers), each with specific responsibilities and well-defined interactions:
 
 ---
 
 ##### 🖼️ **Layer 1: Presentation**
 - **Purpose**: User interface and interaction management
 - **Components**: 
-  - 🌐 Web Front-end
-  - 💻 CLI Front-end
-- **Relations**: Generates requests that are forwarded to the Synchronous Communication layer
+  - Web Front-end (Next.js)
+  - CLI Front-end (Rust)
+- **Relations**: Generates requests that are forwarded to the Load Balancing layer
 
 ---
 
-##### 🔄 **Layer 2: Synchronous Communication**
-- **Purpose**: Real-time request routing and handling
-- **Key Component**: 🚪 API Gateway
+##### 🔄 **Layer 2: Load Balancing and Reverse Proxy**
+- **Purpose**: Security gateway, SSL/TLS termination, and request distribution
+- **Key Component**: Reverse Proxy (NginX) configured as load balancer
 - **Relations**: 
-  - Receives requests from Presentation layer
+  - Receives all incoming requests from Presentation layer
+  - Distributes requests across multiple API Gateway instances using Weighted Round-Robin
+  - Provides SSL/TLS encryption and request filtering
+  - Acts as single entry point for security
+
+---
+
+##### � **Layer 3: Synchronous Orchestration**
+- **Purpose**: Real-time request routing and orchestration
+- **Key Component**: API Gateway [instances 1, 2, 3] (Go)
+- **Relations**: 
+  - Receives load-balanced requests from Reverse Proxy
   - Routes requests to appropriate Logic layer components
   - Ensures synchronous communication patterns
+  - Validates and composes requests
 
 ---
 
-##### ⚙️ **Layer 3: Logic**
+##### ⚙️ **Layer 4: Logic**
 - **Purpose**: Core business logic and system functionality
 - **Components**: 
-    - prediagnostic-be
-    - message-producer
-    - notifications-be
-    - auth-be
+    - prediagnostic-be (Python)
+    - message-producer (Go)
+    - notification-be (Go)
+    - auth-be (Go)
 - **Relations**: 
-  - Processes requests from API Gateway
-  - Exclusive access to system data
+  - Processes requests from API Gateway instances
+  - Exclusive access to system data through Data layer
   - Implements main system functionalities
+  - Publishes events to Asynchronous Communication layer
 
 ---
 
-##### 📨 **Layer 4: Asynchronous Communication**
+##### 📨 **Layer 5: Asynchronous Communication**
 - **Purpose**: Non-blocking message handling
-- **Technology**: 🐰 RabbitMQ (Message Broker)
+- **Technology**: Message Broker (RabbitMQ with AMQP)
 - **Relations**: 
-  - Manages asynchronous message queues
+  - Manages asynchronous message queues between producer and consumer
   - Enables system to continue processing while messages are queued
   - Supports decoupled component communication
 
 ---
 
-##### 💾 **Layer 5: Data**
+##### 💾 **Layer 6: Data**
 - **Purpose**: Data storage and integrity management
 - **Components**: 
-  - prediagnostic-db
-  - radiography-image-storage
-  - users-db
-  - profile-image-storage
-- **Relations**: Provides persistent storage for all system data
+  - prediagnostic-db (MongoDB)
+  - radiography-image-storage (File Storage)
+  - auth-db (PostgreSQL)
+  - profile-image-storage (File Storage)
+- **Relations**: Provides persistent storage for all system data, accessed exclusively by Logic layer components
 
 ---
 
-##### 🌐 **Layer 6: External Communication**
+##### 🌐 **Layer 7: External Communication**
 - **Purpose**: Integration with external services
-- **Services**: 📧 Mailgun (Email API Platform)
+- **Services**: Mailgun (Email API Platform)
 - **Relations**: 
   - Extends system capabilities through external APIs
   - Handles communication with third-party services
   - Enables email notifications and external integrations
 
 #### 🏛️ **Description of architectural patterns used**
-As we saw in the c&c view, we implemented several software architectural patterns, now we are going to check them in our layered view in order to have a better understand.
+As we saw in the C&C view, we implemented several software architectural patterns. Now we are going to examine them in our layered view for better understanding.
 
-**T6 Layered pattern**: This organizational pattern organize our system in 6 layers (the one´s that are described above). Each layer must follow a hierarchical order.
+**7-Tier Layered Pattern**: This organizational pattern organizes our system into 7 distinct layers (tiers) as described above. Each layer must follow a strict hierarchical order, where upper layers can only communicate with adjacent lower layers.
 
-**API Gateway Pattern**: This communication pattern is located at our Synchronous Layer (the second one from top to bottom). It acts as an intermediary between clients and a collection of our backend microservices and follows a hierarchy level.
+**Reverse Proxy Pattern**: Located in Layer 2 (Load Balancing and Reverse Proxy), NginX acts as the single entry point for all client requests. It provides SSL/TLS termination, request filtering, and security enforcement before routing to backend services.
 
-**Broker pattern**:This communication pattern (asynchronous) is located in our Asynchronous Communication layer. However, we need to make a clarification here. As we know, this pattern is usually built with producer and consumer components, but the component that belongs to this layer is the broker — not the other two.
+**Load Balancer Pattern**: Also in Layer 2, the reverse proxy implements a Weighted Round-Robin load balancing algorithm to distribute incoming requests across three API Gateway instances (Layer 3), ensuring high availability and optimal resource utilization.
+
+**API Gateway Pattern**: This communication pattern is located in Layer 3 (Synchronous Orchestration). Multiple API Gateway instances act as intermediaries between the load balancer and backend microservices. They handle request composition, validation, and routing while following the hierarchical structure.
+
+**Broker Pattern**: This asynchronous communication pattern is located in Layer 5 (Asynchronous Communication). The message broker (RabbitMQ) decouples producers (message_producer) from consumers (notification-be) through AMQP queues. The broker itself belongs to this layer, while producers and consumers reside in the Logic layer (Layer 4).
 
 
 #### 🧠 **Logic Layers**
