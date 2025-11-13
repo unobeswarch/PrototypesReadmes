@@ -63,9 +63,9 @@ This view describes runtime components, the interfaces they provide/require, and
 
 - Clients
 	- `web-front-end` (Next.js): UI for doctors and patients.
-		- Connectors: HTTP-REST to `reverse-proxy` for authentication and file uploads; HTTP-GRAPHQL to `reverse-proxy` for data queries/mutations.
+		- Connectors: HTTPS-REST to `reverse-proxy` for authentication and file uploads; HTTP-GRAPHQL to `reverse-proxy` for data queries/mutations.
 	- `cli-front-end` (Rust): Command-line client as a secondary interface.
-		- Connectors: HTTP-REST to `reverse-proxy`.
+		- Connectors: HTTPS-REST to `reverse-proxy`.
 
 - Load Balancer and Security Layer
 	- `reverse-proxy` (NginX): Acts as load balancer and security gateway. Single entry point for all client requests.
@@ -101,8 +101,8 @@ This view describes runtime components, the interfaces they provide/require, and
 
 - Connector summary and directionality
 	- HTTPS: `web browser → web-front-end`, `cmd → cli-front-end`.
-	- HTTP-REST: `cli-front-end → reverse-proxy → api-gateway [1,2,3]`.
-	- HTTP-GRAPHQL: `web-front-end → reverse-proxy → api-gateway [1,2,3]`.
+	- HTTPS-REST: `cli-front-end → reverse-proxy → api-gateway [1,2,3]`.
+	- HTTPS-GRAPHQL: `web-front-end → reverse-proxy → api-gateway [1,2,3]`.
 	- HTTP-REST: `web-front-end → reverse-proxy → api-gateway [1,2,3]` (for auth and uploads).
 	- HTTP-REST (internal): `api-gateway → (auth-be | prediagnostic-be | message_producer)`.
 	- AMQP: `message_producer → message-broker → notification-be`.
