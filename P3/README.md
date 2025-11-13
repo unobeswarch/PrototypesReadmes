@@ -443,15 +443,11 @@ Our system implements multiple security tactics organized by their defensive obj
 
 ##### **React to Attacks**
 
-- **Revoke Access:** System can invalidate JWT tokens when suspicious activity is detected or when users log out, preventing further unauthorized access.
+- **Revoke Access:** System can invalidate JWT tokens when suspicious activity by a admin is detected or when users log out, preventing further unauthorized access.
 
 **Detect Attacks**
 
 - **Verify Message Integrity:** API Gateway validates request structure and content before forwarding to backend services, detecting malformed or malicious payloads.
-
-**Recover from Attacks**
-
-- **Maintain Audit Trail:** System logs authentication attempts, authorization decisions, and critical operations for forensic analysis and compliance purposes.
 
 ---
 
