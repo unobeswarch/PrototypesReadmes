@@ -55,6 +55,12 @@ Our NeumoDiagnostics system employs multiple architectural views to ensure compr
 #### **🎯 Description of Architectural Elements and Relations:**
 This view describes runtime components, the interfaces they provide/require, and the connectors between them (see figure). It focuses on communication paths and protocols rather than implementation internals.
 
+- User Interfaces
+	- `web browser`: Web-based user interface for accessing the system through graphical interface.
+		- Connectors: HTTPS to `web-front-end`.
+	- `cmd` (Command Line): Terminal-based interface for system access via command-line tools.
+		- Connectors: HTTPS to `cli-front-end`.
+
 - Clients
 	- `web-front-end` (Next.js): UI for doctors and patients.
 		- Connectors: HTTP-REST to `reverse-proxy` for authentication and file uploads; HTTP-GRAPHQL to `reverse-proxy` for data queries/mutations.
@@ -63,7 +69,7 @@ This view describes runtime components, the interfaces they provide/require, and
 
 - Load Balancer and Security Layer
 	- `reverse-proxy` (NginX): Acts as load balancer and security gateway. Single entry point for all client requests.
-		- Provided interfaces: HTTP/HTTPS endpoints for REST and GraphQL.
+		- Provided interfaces: HTTP endpoints for REST and GraphQL.
 		- Required connectors: HTTP-REST and HTTP-GRAPHQL to multiple `api-gateway` instances (load balanced).
 		- Functions: SSL/TLS termination, request filtering, load distribution across API Gateway instances.
 
@@ -94,6 +100,7 @@ This view describes runtime components, the interfaces they provide/require, and
 	- `Radiography Image Storage` and `Profile Image Storage`: binary storage behind file drivers used by `prediagnostic-be` and `auth-be` respectively.
 
 - Connector summary and directionality
+	- HTTPS: `web browser → web-front-end`, `cmd → cli-front-end`.
 	- HTTP-REST: `cli-front-end → reverse-proxy → api-gateway [1,2,3]`.
 	- HTTP-GRAPHQL: `web-front-end → reverse-proxy → api-gateway [1,2,3]`.
 	- HTTP-REST: `web-front-end → reverse-proxy → api-gateway [1,2,3]` (for auth and uploads).
@@ -439,14 +446,14 @@ Our system implements four critical security scenarios to ensure data protection
 </div>
 
 **Description:**
-- **Source (Fuente):** User without a valid token
+- **Source (Fuente):** User with bad intentions
 - **Stimulus (Estímulo):** Attempt to intercept, read, or modify information transmitted between client and server during normal system communication
 - **Artifact (Artefacto):** Secure communication channel implemented with HTTPS/TLS between client and reverse proxy
 - **Environment (Ambiente):** System during its normal operation
 - **Response (Respuesta):** Protection of communication through TLS encryption and rejection of any interception or data manipulation attempts
 - **Response Measure (Medición de la respuesta):** Interception attempts blocked and traffic completely encrypted
 
-**Applied Pattern:** Secure Channel Pattern (HTTPS/TLS with Reverse Proxy)
+**Applied Pattern:** Secure Channel Pattern (HTTPS/TLS)
 
 ---
 
