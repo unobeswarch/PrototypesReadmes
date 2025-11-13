@@ -520,6 +520,37 @@ Our system implements performance and scalability scenarios to ensure optimal re
 
 **Applied Pattern:** Load Balancer
 
+##### **Scenario 2**
+
+<div align="center">
+
+![Load Balancer Scenario](./images/throught.png)
+
+</div>
+
+**📋 Description:**
+- **Source (Fuente):** One or several users or a botnet.
+- **Stimulus (Estímulo):** Sending more than 20 requests per minute from the same user.
+- **Artifact (Artefacto):** System
+- **Environment (Ambiente):** System during its normal execution
+- **Response (Respuesta):** Limit the number of requests per minute from the same source establishing a rate limit through an intermediary (nginx)
+
+- **Response Measure (Medición de la respuesta):** The number of requests accepted and rejected from the implied service.
+
+**Applied Pattern:** Throttling: This pattern is used to limit access to some important resource or service. We can gracefully handle variations in demand.
+
+We implemented this pattern through ***nginx*** setting the rate limit in the services we wanted. Next we can see an example about the implementation of this pattern. We are going to set a rate limit of 10 requests per minute with a burst of 1 to the register service exposed by the auth-be component. This means that our system will admit just 1 request each 6 seconds.
+
+In order to make this scenario, we are going to do 5 requests in one second through *JMeter* and then we are going to see the logs.
+
+<div align="center">
+
+![Load Balancer Scenario](./images/pattern2Applied.png)
+</div>
+
+
+As we can see, only 2 of 5 requests were accepted. But, why not just one?. The reason to accept 2 of 5 is that we set a burst of 1, this means we have one more "emergency" request.
+
 ---
 
 #### **Applied Architectural Tactics**
