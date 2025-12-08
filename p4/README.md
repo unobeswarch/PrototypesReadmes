@@ -466,659 +466,315 @@ This view decomposes the system into implementation units (modules and submodule
 
 ---
 
-## 🎯 **Quality Attributes - AWS Implementation**
+## 🎯 **Quality Attributes**
 
 ### **Security**
 
 All security scenarios from Prototype 3 are maintained and enhanced:
 
-**✅ Network Segmentation Pattern**
-- Implemented via VPC with public/private/database subnet separation
-- Private subnets for all application services and databases
-- No direct internet access to backend components
 
-**✅ Reverse Proxy Pattern**
-- AWS Application Load Balancer serves as reverse proxy
-- AWS WAF provides additional protection
-- Rate limiting implemented at WAF level
+## 🎯 **Quality Attributes**
 
-**✅ Token Authentication (JWT)**
-- Unchanged from Prototype 3
-- JWT validation at API Gateway level
-- IAM roles for service-to-service authentication
+### 🔒 **Security**
 
-**✅ Secure Channel (HTTPS/TLS)**
-- ALB handles TLS termination
-- ACM-managed SSL certificates
-- TLS 1.2+ enforced
+#### **Security Scenarios**
 
-**Additional Security Features:**
-- AWS Shield for DDoS protection
-- GuardDuty for threat detection
-- CloudTrail for audit logging
-- Secrets Manager for credential rotation
+Our system implements four critical security scenarios to ensure data protection, user authentication, and secure communications:
+
+##### **Scenario 1: Network Segmentation**
+
+<div align="center">
+
+![Network Segmentation Scenario](./images/Escenario%20-%20Network%20Segmentation%20Pattern.png)
+
+</div>
+
+**Description:**
+- **Source (Fuente):** Person using their own computer
+- **Stimulus (Estímulo):** Direct request sent to some component of the private network (Back-end and databases)
+- **Artifact (Artefacto):** Private network components (Back-end and databases)
+- **Environment (Ambiente):** System during its normal execution
+- **Response (Respuesta):** Request rejection
+- **Response Measure (Medición de la respuesta):** Number of requests made to private network components that have been rejected
+
+**Applied Pattern:** Network Segmentation Pattern
+
+---
+
+##### **Scenario 2: Reverse Proxy**
+
+<div align="center">
+
+![Reverse Proxy Scenario](./images/Escenario%20-%20Reverse%20Proxy.png)
+
+</div>
+
+**Description:**
+- **Source (Fuente):** External attacker or poorly maintained client
+- **Stimulus (Estímulo):** Multiple malicious requests attempting to access backend services and overload the API Gateway
+- **Artifact (Artefacto):** NginX configured as the single entry point
+- **Environment (Ambiente):** System during its normal execution
+- **Response (Respuesta):** The reverse proxy intercepts and blocks unauthorized access, filters and detects each request
+- **Response Measure (Medición de la respuesta):** The reverse proxy registers and rejects illegitimate access, maintains and protects healthy instances
+
+**Applied Pattern:** Reverse Proxy Pattern
+
+---
+
+##### **Scenario 3: Token Authentication (JWT)**
+
+<div align="center">
+
+![Token Authentication Scenario](./images/Escenario%20-%20Token%20Authentication.png)
+
+</div>
+
+**Description:**
+- **Source (Fuente):** Malicious user without valid identification in the system
+- **Stimulus (Estímulo):** Attempt to use any system functionality different from login or register
+- **Artifact (Artefacto):** Set of functionalities that require authentication and a specific role (doctor or patient)
+- **Environment (Ambiente):** System during its normal execution
+- **Response (Respuesta):** Rejection of the request and redirection of the user to the login service or to their corresponding dashboard in case a lack of a valid JWT token identifying the user is detected
+- **Response Measure (Medición de la respuesta):** Number of requests rejected due to missing valid JWT token
+
+**Improves from Prototype 3:** There was a big vulnerability related to this pattern because somebody could steal the JWT from any user and use it in any other PC. To correct this vulnerability, now our JWT stores the ip of the user whe he logs in, and, when the user wants to send a request, the authentication system verifies if the JWT's ip is the same as the ip that is sending the request. If it is not, ther user is redirected to the login service.
+
+**Applied Pattern:** Token-Based Authentication (JWT)
+
+---
+
+##### **Scenario 4: Secure Channel (HTTPS/TLS)**
+
+<div align="center">
+
+![Secure Channel Scenario](./images/Escenario%20-%20Secure%20Channel.png)
+
+</div>
+
+**Description:**
+- **Source (Fuente):** User with bad intentions
+- **Stimulus (Estímulo):** Attempt to intercept, read, or modify information transmitted between client and server during normal system communication
+- **Artifact (Artefacto):** Secure communication channel implemented with HTTPS/TLS between client and reverse proxy
+- **Environment (Ambiente):** System during its normal operation
+- **Response (Respuesta):** Protection of communication through TLS encryption and rejection of any interception or data manipulation attempts
+- **Response Measure (Medición de la respuesta):** Interception attempts blocked and traffic completely encrypted
+
+**Applied Pattern:** Secure Channel Pattern (HTTPS/TLS)
+
+---
+
+#### **Applied Architectural Tactics**
+
+Our system implements multiple security tactics organized by their defensive objectives:
+
+##### **Resist Attacks**
+
+- **Authenticate Actor:** JWT-based authentication system validates user identity before granting access to protected resources. Implemented in `auth-be` service with token validation at the API Gateway level.
+
+- **Authorize Actors:** Role-based authorization checks ensure users can only access functionalities appropriate to their roles (doctors vs. patients). Enforced through middleware in the API Gateway and backend services.
+
+- **Limit Access:** Network segmentation isolates private components (backend services and databases) from direct external access. Only the API Gateway is exposed as the single entry point.
+
+- **Limit Exposure:** The API Gateway pattern minimizes the attack surface by exposing only necessary endpoints and hiding internal service topology from external clients.
+
+- **Encrypt Data:** TLS/HTTPS encryption protects all data in transit between clients and the reverse proxy, and between internal services when handling sensitive information.
+
+- **Separate Entities:** Microservices architecture separates concerns into independent services (`auth-be`, `prediagnostic-be`, `notification-be`), limiting the blast radius of potential security breaches.
+
+##### **React to Attacks**
+
+- **Revoke Access:** System can redirect the user to the service login to make him generate a new JWT, if the current JWT is invalid
+
+---
+
+#### **Applied Architectural Patterns**
+
+- **Network Segmentation Pattern:** Isolation of private network components from direct external access
+- **Reverse Proxy Pattern:** NginX as single entry point for filtering, load balancing, and security enforcement
+- **Token-Based Authentication Pattern:** JWT for secure session management and stateless authentication
+- **Secure Channel Pattern:** HTTPS/TLS encryption for all client-server communications
+
+---
 
 ### **Performance and Scalability**
 
-**✅ Load Balancer / Weighted Round-Robin**
-- ALB distributes traffic across multiple ECS tasks
-- Health checks ensure traffic only to healthy instances
-- Cross-zone load balancing enabled
 
-**✅ Throttling**
-- AWS WAF rate limiting: 2000 requests per 5 minutes per IP
-- API Gateway throttling (optional): 1000 requests/second
-- DDoS protection via AWS Shield
+#### **Performance Scenarios**
 
-**✅ Auto-Scaling**
-- Horizontal scaling for all ECS services
-- CPU and memory-based scaling policies
-- Request count-based scaling
-- Scheduled scaling for predictable patterns
+Our system implements performance and scalability scenarios to ensure optimal resource utilization and response times under varying load conditions:
 
-**Enhanced Performance Features:**
-- Multi-AZ deployment for high availability
-- ECS Service Auto Scaling
-- RDS Read Replicas for read-heavy operations
-- DocumentDB read replicas across AZs
-- CloudFront CDN for static content delivery
+### **Scenario 1: Load Balancer / Weighted Round-Robin**
+
+<div align="center">
+
+![Load Balancer Scenario](./images/Escenario%20-%20Load%20Balancer.png)
+
+</div>
+
+**📋 Description:**
+- **Source (Fuente):** 300 users
+- **Stimulus (Estímulo):** Sending 300 different requests in 1 second
+- **Artifact (Artefacto):** System
+- **Environment (Ambiente):** System during its normal execution
+- **Response (Respuesta):** Distribution of requests among the 3 API Gateway instances according to the Weighted Round-Robin algorithm
+- **Response Measure (Medición de la respuesta):** Number of requests handled by each API Gateway instance
+
+**Applied Pattern:** Load Balancer
+
+### **Scenario 2: Throttling**
+
+<div align="center">
+
+![Load Balancer Scenario](./images/throught.png)
+
+</div>
+
+**📋 Description:**
+- **Source (Fuente):** One or several users or a botnet.
+- **Stimulus (Estímulo):** Sending more than 20 requests per minute from the same user.
+- **Artifact (Artefacto):** System
+- **Environment (Ambiente):** System during its normal execution
+- **Response (Respuesta):** Limit the number of requests per minute from the same source establishing a rate limit through an intermediary (nginx)
+
+- **Response Measure (Medición de la respuesta):** The number of requests accepted and rejected from the implied service.
+
+**Applied Pattern:** **Throttling***: This pattern is used to limit access to some important resource or service. We can gracefully handle variations in demand.
+
+We implemented this pattern through ***nginx*** setting the rate limit in the services we wanted. Next we can see an example about the implementation of this pattern. We are going to set a rate limit of 10 requests per minute with a burst of 1 to the register service exposed by the auth-be component. This means that our system will admit just 1 request each 6 seconds.
+
+In order to make this scenario, we are going to do 5 requests in one second through *JMeter* and then we are going to see the logs.
+
+<div align="center">
+
+![Load Balancer Scenario](./images/pattern2Applied.png)
+</div>
+
+
+As we can see, only 2 of 5 requests were accepted. The reason to accept 2 of 5 is that we set a burst of 1, this means we have one more "emergency" request.
 
 ---
 
-## 🔄 **Reliability (High Availability, Resilience, and Fault Tolerance)**
+#### **Applied Architectural Tactics**
+
+Our system implements performance tactics to optimize resource utilization and response times:
+
+**Control Resource Demand**
+
+- **Manage Work Requests:** The system processes incoming requests efficiently through the load balancer, distributing workload across multiple instances.
+
+**Manage Resources**
+
+- **Increase Resources:** Multiple API Gateway instances (3 instances) are deployed to handle increased load and provide redundancy.
+- **Introduce Concurrency:** The Weighted Round-Robin algorithm distributes requests across multiple instances, enabling parallel processing of requests.
+- **Maintain Multiple Copies of Computations:** Three instances of the API Gateway run simultaneously to handle concurrent requests without blocking.
+- **Schedule Resources:** Weighted Round-Robin scheduling algorithm manages how requests are distributed among available API Gateway instances based on their weights and current load.
+
+---
+
+#### **Applied Architectural Patterns**
+
+- **Load Balancer Pattern:** Weighted Round-Robin algorithm distributes incoming requests across multiple API Gateway instances
+
+---
+
+## **Reliability**
 
 Our architecture implements multiple reliability patterns to ensure high availability, resilience, and fault tolerance across all system components.
 
----
 
 ### **Reliability Scenarios**
 
-#### **Scenario 1: Replication Pattern (Hot Spare) - Database High Availability**
-
-<!-- Diagram: Replication Pattern with RDS Multi-AZ and DocumentDB Cluster -->
-
-**📋 Description:**
-- **Source (Fuente):** Primary database instance (RDS or DocumentDB)
-- **Stimulus (Estímulo):** Hardware failure, software crash, or AZ outage affecting the primary database
-- **Artifact (Artefacto):** Database tier (RDS PostgreSQL Multi-AZ and DocumentDB Cluster)
-- **Environment (Ambiente):** Production system under normal or high load
-- **Response (Respuesta):** Automatic failover to standby replica with minimal service interruption
-- **Response Measure (Medición de la respuesta):** 
-  - Recovery Time Objective (RTO): < 2 minutes for RDS, < 30 seconds for DocumentDB
-  - Recovery Point Objective (RPO): Zero data loss (synchronous replication)
-  - Service availability maintained at > 99.9%
-
-**Applied Pattern:** **Hot Spare Replication Pattern**
-
-**Implementation:**
-
-**RDS PostgreSQL (auth-db):**
-- **Primary Instance**: Located in `us-east-1a`
-- **Standby Replica**: Automatically provisioned in `us-east-1b` (synchronous replication)
-- **Automatic Failover**: AWS RDS manages failover automatically
-- **Endpoint**: Single DNS endpoint that automatically points to active primary
-- **Data Replication**: Synchronous replication ensures zero data loss
-
-**DocumentDB (prediagnostic-db):**
-- **Primary Instance**: Writer instance in `us-east-1a`
-- **Replica 1**: Reader instance in `us-east-1b`
-- **Replica 2**: Reader instance in `us-east-1c`
-- **Automatic Failover**: If primary fails, one replica is promoted to primary (< 30 seconds)
-- **Read Distribution**: Read queries distributed across all replicas for load balancing
-
----
-
-#### **Scenario 2: Service Discovery Pattern - Dynamic Service Location**
-
-<!-- Diagram: Service Discovery Pattern with AWS Cloud Map -->
-
-**📋 Description:**
-- **Source (Fuente):** New ECS task instance or API Gateway instance
-- **Stimulus (Estímulo):** Service instance starts, stops, or becomes unhealthy; auto-scaling adds/removes instances
-- **Artifact (Artefacto):** ECS services and Application Load Balancer with target groups
-- **Environment (Ambiente):** Dynamic cloud environment with auto-scaling
-- **Response (Respuesta):** Services automatically discover and connect to healthy backend instances without manual configuration
-- **Response Measure (Medición de la respuesta):**
-  - Time to register new service: < 30 seconds
-  - Time to deregister unhealthy service: < 60 seconds (2 failed health checks)
-  - Zero manual DNS or configuration updates required
-
-**Applied Pattern:** **Service Discovery Pattern**
-
-**Implementation:**
-
-**AWS Cloud Map (ECS Service Discovery):**
-- **Namespace**: `neumodiagnostics.local` (private DNS namespace)
-- **Service Discovery**: Each ECS service automatically registers with AWS Cloud Map
-- **DNS-based Discovery**: Services discover each other via DNS queries
-
-**Service Registry Configuration:**
-
-| **Service** | **Discovery Name** | **Health Check** | **TTL** |
-|-------------|-------------------|------------------|---------|
-| api-gateway | api-gateway.neumodiagnostics.local | HTTP /health (port 8080) | 10s |
-| auth-be | auth-be.neumodiagnostics.local | HTTP /health (port 8081) | 10s |
-| prediagnostic-be | prediagnostic-be.neumodiagnostics.local | HTTP /health (port 8000) | 10s |
-| message-producer | message-producer.neumodiagnostics.local | HTTP /health (port 8082) | 10s |
-
-**Application Load Balancer Target Group Discovery:**
-- **Dynamic Registration**: ECS tasks automatically register with ALB target groups upon startup
-- **Health Checks**: ALB performs continuous health checks (30-second intervals)
-- **Automatic Deregistration**: Unhealthy targets removed after 2 consecutive failed checks (60 seconds)
-- **Connection Draining**: 30-second deregistration delay for graceful shutdown
-
-**How It Works:**
-1. New ECS task starts → Automatically registers with AWS Cloud Map and ALB target group
-2. API Gateway queries `auth-be.neumodiagnostics.local` → Gets list of healthy auth-be instances
-3. Instance becomes unhealthy → ALB marks as unhealthy and stops routing traffic
-4. Failed health checks persist → Instance deregistered from service discovery
-5. Auto-scaling adds new instance → Automatically discovered and receives traffic within 30 seconds
-
----
-
-#### **Scenario 3: Cluster Pattern - Coordinated Service Groups**
-
-<!-- Diagram: Cluster Pattern with ECS, DocumentDB, and Amazon MQ Clusters -->
-
-**📋 Description:**
-- **Source (Fuente):** Multiple instances of the same service type
-- **Stimulus (Estímulo):** High traffic load requiring multiple service instances; individual instance failure
-- **Artifact (Artefacto):** ECS Cluster with multiple service replicas, DocumentDB Cluster, Amazon MQ Cluster
-- **Environment (Ambiente):** Production environment with variable load
-- **Response (Respuesta):** Work is distributed across cluster members; failed members are replaced automatically; cluster continues operation
-- **Response Measure (Medición de la respuesta):**
-  - Cluster maintains operation with loss of up to 33% of members
-  - New member provisioning time: < 2 minutes
-  - Load distribution efficiency: > 85% across healthy members
-  - Zero service disruption during member replacement
-
-**Applied Pattern:** **Cluster Pattern**
-
-**Implementation:**
-
-**1. ECS Service Cluster (Compute Tier):**
-
-Each service runs as a cluster of tasks distributed across multiple AZs:
-
-| **Service Cluster** | **Min Tasks** | **Desired Tasks** | **Max Tasks** | **Distribution** |
-|---------------------|---------------|-------------------|---------------|------------------|
-| api-gateway-cluster | 3 | 3 | 9 | 1+ per AZ |
-| auth-be-cluster | 2 | 2 | 6 | 1+ per AZ |
-| prediagnostic-be-cluster | 2 | 3 | 6 | 1+ per AZ |
-| web-frontend-cluster | 2 | 3 | 6 | 1+ per AZ |
-| message-producer-cluster | 2 | 2 | 4 | 1+ per AZ |
-| notification-be-cluster | 2 | 2 | 4 | 1+ per AZ |
-
-**Cluster Coordination:**
-- **ECS Service Scheduler**: Ensures tasks are distributed across AZs
-- **Load Balancer**: Distributes requests across all healthy cluster members
-- **Auto-Scaling**: Adds/removes cluster members based on load
-- **Health Monitoring**: Unhealthy members automatically replaced
-
-**2. DocumentDB Cluster (Database Tier):**
-
-- **Cluster Configuration**: 1 Writer + 2 Readers across 3 AZs
-- **Read Distribution**: Read queries load-balanced across reader instances
-- **Write Operations**: All writes to primary (writer) instance
-- **Automatic Failover**: Reader promoted to writer if primary fails
-
-**3. Amazon MQ Cluster (Message Broker Tier):**
-
-- **Active/Standby Configuration**: One active broker, one standby in different AZ
-- **Automatic Failover**: Standby promoted to active on failure
-- **Shared Storage**: EBS multi-attach for message persistence
-
-**Cluster Benefits:**
-- ✅ **No Single Point of Failure**: Loss of one member doesn't affect service
-- ✅ **Horizontal Scalability**: Add members to increase capacity
-- ✅ **Load Distribution**: Work distributed evenly across members
-- ✅ **Fault Isolation**: Failed member isolated without affecting others
-- ✅ **Rolling Updates**: Update members one at a time without downtime
-
----
-
-#### **Scenario 4: Health Check and Circuit Breaker Pattern - Proactive Failure Detection**
-
-<!-- Diagram: Health Check and Circuit Breaker Pattern -->
-
-**📋 Description:**
-- **Source (Fuente):** Load balancer, container orchestrator, or monitoring system
-- **Stimulus (Estímulo):** Service instance becomes slow, unresponsive, or returns errors
-- **Artifact (Artefacto):** All ECS services with health check endpoints, ALB target groups
-- **Environment (Ambiente):** Production environment under varying load conditions
-- **Response (Respuesta):** Unhealthy instances detected and removed from rotation; traffic routed only to healthy instances; alerts triggered for investigation
-- **Response Measure (Medición de la respuesta):**
-  - Health check frequency: Every 30 seconds
-  - Unhealthy threshold: 2 consecutive failures (60 seconds to mark unhealthy)
-  - Healthy threshold: 2 consecutive successes (60 seconds to mark healthy)
-  - Zero requests routed to unhealthy instances after detection
-
-**Applied Pattern:** **Health Check Pattern + Circuit Breaker Pattern**
-
-**Implementation:**
-
-**1. Application Load Balancer Health Checks:**
-
-| **Target Group** | **Health Check Path** | **Interval** | **Timeout** | **Healthy Threshold** | **Unhealthy Threshold** |
-|------------------|----------------------|--------------|-------------|----------------------|-------------------------|
-| web-frontend-tg | GET / | 30s | 5s | 2 | 2 |
-| api-gateway-tg | GET /health | 30s | 5s | 2 | 2 |
-
-**Health Check Response Format (Standard for all services):**
-
-```json
-{
-  "status": "healthy",
-  "timestamp": "2025-12-08T10:30:00Z",
-  "service": "api-gateway",
-  "version": "1.0.0",
-  "dependencies": {
-    "database": "connected",
-    "cache": "connected",
-    "message_broker": "connected"
-  },
-  "metrics": {
-    "uptime_seconds": 86400,
-    "active_connections": 42,
-    "memory_usage_mb": 512
-  }
-}
-```
-
-**2. ECS Container Health Checks:**
-
-Each ECS task definition includes container-level health checks:
-
-```json
-"healthCheck": {
-  "command": ["CMD-SHELL", "curl -f http://localhost:8080/health || exit 1"],
-  "interval": 30,
-  "timeout": 5,
-  "retries": 3,
-  "startPeriod": 60
-}
-```
-
-**3. Deep Health Checks (Application-Level):**
-
-Each service implements comprehensive health checks:
-
-- **Shallow Health Check** (`/health`): Returns 200 OK if service is running
-- **Deep Health Check** (`/health/ready`): Validates all dependencies:
-  - Database connectivity (connection pool status)
-  - Message broker connectivity
-  - Dependent service availability
-  - Disk space availability
-  - Memory pressure check
-
-**4. Circuit Breaker Implementation:**
-
-API Gateway implements circuit breaker for downstream services:
-
-- **Closed State**: Normal operation, requests forwarded
-- **Open State**: After X failures, stop forwarding requests (fail fast)
-- **Half-Open State**: After timeout, try single request to test recovery
-
-**Circuit Breaker Configuration:**
-
-| **Downstream Service** | **Failure Threshold** | **Timeout** | **Success Threshold** |
-|------------------------|----------------------|-------------|----------------------|
-| auth-be | 5 failures in 10s | 30s | 2 successes |
-| prediagnostic-be | 5 failures in 10s | 30s | 2 successes |
-| message-producer | 3 failures in 10s | 20s | 2 successes |
-
-**Health Check Flow:**
-
-```
-1. ALB sends GET /health every 30s
-   ↓
-2. Service responds with health status + dependency checks
-   ↓
-3. IF response 200 OK within 5s → Healthy
-   IF timeout or non-200 → Unhealthy
-   ↓
-4. After 2 consecutive unhealthy checks (60s total)
-   → Mark target as unhealthy
-   → Stop routing traffic
-   → Trigger CloudWatch alarm
-   ↓
-5. ECS detects unhealthy container
-   → Stop and replace container
-   ↓
-6. New container starts
-   → 60s grace period (startPeriod)
-   → Begin health checks
-   ↓
-7. After 2 consecutive healthy checks (60s total)
-   → Mark target as healthy
-   → Resume routing traffic
-```
-
----
-
-### **Applied Reliability Tactics**
-
-Our architecture implements multiple tactics from the reliability category:
-
-#### **Detect Faults**
-
-- **Ping/Echo (Health Checks)**: Regular health checks at ALB and ECS levels
-- **Monitor**: CloudWatch metrics tracking service health, response times, and error rates
-- **Heartbeat**: ECS tasks send regular status updates to container orchestrator
-- **Exception Detection**: Application logs errors and exceptions to CloudWatch
-
-#### **Recover from Faults**
-
-- **Active Redundancy (Hot Spare)**: RDS standby replica, DocumentDB replicas, multiple ECS tasks
-- **Retry**: Failed requests automatically retried with exponential backoff
-- **Rollback**: Failed deployments automatically rolled back to previous version
-- **Software Upgrade**: Rolling updates replace instances one at a time
-- **Exception Handling**: Services implement graceful error handling and recovery
-
-#### **Prevent Faults**
-
-- **Removal from Service**: Unhealthy instances removed from load balancer rotation
-- **Predictive Model**: Auto-scaling based on predicted traffic patterns
-- **Increase Competence Set**: Multi-AZ deployment ensures redundancy across failure domains
-
----
-
-## 🔗 **Interoperability**
-
-Our architecture ensures seamless interoperability with external systems and services through well-defined interfaces and standard protocols.
-
----
+##### **Scenario 1: Replication Pattern (Hot Spare)**
+
+<div align="center">
+
+![Replication Pattern](./images/Escenario%20-%20Replication%20Pattern.png)
+
+</div>
+
+**Description:**
+- **Source (Fuente):** User (doctor or patient)
+- **Stimulus (Estímulo):** User sends a request which implies to make an action on the database auth-db
+- **Artifact (Artefacto):** The system
+- **Environment (Ambiente):** System with a failure on the database auth-db
+- **Response (Respuesta):** The hot spare database is used to keep the system working
+- **Response Measure (Medición de la respuesta):** Number of failed requests sent to the database 
+
+**Applied Pattern:** Replication Pattern (Hot Spare)
+
+##### **Scenario 2: Cluster Pattern**
+
+<div align="center">
+
+![CLuster Pattern](./images/Escenario%20-%20Cluster%20Pattern.png)
+
+</div>
+
+**Description:**
+- **Source (Fuente):** Patient using the system from his PC
+- **Stimulus (Estímulo):** User enters to his dashboard to se his radiographies and their states
+- **Artifact (Artefacto):** The system
+- **Environment (Ambiente):** System during the normal execution
+- **Response (Respuesta):** The MongoDB cluster filters the radipgraphies by user's id and returns the information to visualize it in the front end
+- **Response Measure (Medición de la respuesta):** Percentage of correctly returned cases
+
+**Applied Pattern:** 
+
+##### **Scenario 3: Load Balancer with Removal From Service Tactic implementend**
+
+<div align="center">
+
+![Load Balancer (Removal From Service)](./images/Escenario%20-%20Load%20Balancer%20(Removal%20from%20Service).png)
+
+</div>
+
+**Description:**
+- **Source (Fuente):** User (doctor or patient)
+- **Stimulus (Estímulo):** User sends a request
+- **Artifact (Artefacto):** The system
+- **Environment (Ambiente):** System with failes in one of the API Gateway instances
+- **Response (Respuesta):**  The load balancer detects the failures in one of the instances and discards it for the next requests
+- **Response Measure (Medición de la respuesta):** Number of requests without processing due to the failure in the instance of the API Gateway
+
+**Applied Pattern:** Load Balancer
+
+##### **Scenario 4: Service Discovery Pattern**
+
+<div align="center">
+
+![Service Discovery Pattern](./images/Escenario%20-%20Service%20Discovery%20Pattern.png)
+
+</div>
+
+**Description:**
+- **Source (Fuente):** User (doctor or patient)
+- **Stimulus (Estímulo):** User sends a request
+- **Artifact (Artefacto):** The system
+- **Environment (Ambiente):** The system during normal execution
+- **Response (Respuesta):** The system detects all the available API Gateway instances to allow the load balancer to choose the instance that is going to process the request
+- **Response Measure (Medición de la respuesta):** Number of requests that each instance has processed
+
+**Applied Pattern:** Service Discovery Pattern
+
+#### **Applied Architectural Tactics**
+
+- **Redundant Spare**
+- **Removal from service**
 
 ### **Interoperability Scenario**
 
-<!-- Diagram: Interoperability with External Systems via API Gateway -->
+##### **Scenario 1: Interoperability**
 
-**📋 Description:**
-- **Source (Fuente):** External healthcare systems, third-party medical imaging systems, email service providers, future mobile applications
-- **Stimulus (Estímulo):** External system needs to integrate with NeumoDiagnostics to exchange patient data, retrieve diagnostic results, or send notifications
-- **Artifact (Artefacto):** API Gateway with RESTful and GraphQL interfaces, Amazon SES integration, S3 API for image storage
-- **Environment (Ambiente):** Integration requests from various external systems with different protocols and data formats
-- **Response (Respuesta):** System provides standardized APIs supporting multiple protocols (REST, GraphQL, HTTPS), handles authentication/authorization, transforms data formats, and maintains backward compatibility
-- **Response Measure (Medición de la respuesta):**
-  - API response time for external requests: < 500ms (p95)
-  - API availability for external integrations: > 99.9%
-  - Support for multiple data formats: JSON, XML (via content negotiation)
-  - API versioning support: Maintain backward compatibility for at least 2 major versions
-  - Authentication success rate: > 99.5%
+<div align="center">
 
-**Applied Pattern:** **API Gateway Pattern + Adapter Pattern**
+![Interoperability](./images/Escenario%20-%20Interoperabilidad.png)
 
----
+</div>
 
-### **Interoperability Implementation**
-
-#### **1. RESTful API (External Integration)**
-
-**Public API Endpoints:**
-
-```
-Base URL: https://api.neumodiagnostics.com/v1
-```
-
-| **Endpoint** | **Method** | **Purpose** | **Authentication** |
-|--------------|------------|-------------|-------------------|
-| `/auth/token` | POST | Obtain JWT token for external systems | API Key |
-| `/patients/{id}` | GET | Retrieve patient information | JWT |
-| `/cases/{id}` | GET | Retrieve diagnostic case | JWT |
-| `/radiographs` | POST | Upload radiograph image | JWT |
-| `/diagnoses/{id}` | GET | Retrieve final diagnosis | JWT |
-| `/health` | GET | Health check endpoint | None |
-
-**API Request/Response Format (JSON):**
-
-```json
-// Request: GET /patients/12345
-{
-  "patient_id": "12345",
-  "include": ["demographics", "recent_cases"]
-}
-
-// Response: 200 OK
-{
-  "patient_id": "12345",
-  "demographics": {
-    "name": "John Doe",
-    "age": 45,
-    "gender": "M"
-  },
-  "recent_cases": [
-    {
-      "case_id": "C-789",
-      "date": "2025-12-01",
-      "status": "diagnosed"
-    }
-  ]
-}
-```
-
-**API Versioning Strategy:**
-
-- **URL Versioning**: `/v1/`, `/v2/` in URL path
-- **Header Versioning**: `Accept: application/vnd.neumodiagnostics.v1+json`
-- **Deprecation Policy**: Version maintained for 12 months after new version release
-
-#### **2. GraphQL API (Flexible Query Interface)**
-
-**GraphQL Endpoint:**
-
-```
-https://api.neumodiagnostics.com/graphql
-```
-
-**Sample GraphQL Query:**
-
-```graphql
-query GetPatientWithCases($patientId: ID!) {
-  patient(id: $patientId) {
-    id
-    name
-    email
-    cases {
-      id
-      createdAt
-      status
-      prediagnostic {
-        prediction
-        confidence
-      }
-      diagnosis {
-        conclusion
-        doctorName
-      }
-    }
-  }
-}
-```
-
-**Benefits for External Systems:**
-- ✅ Query only required fields (avoid over-fetching)
-- ✅ Single request for related data (reduce round trips)
-- ✅ Strong typing and schema introspection
-- ✅ Real-time updates via GraphQL subscriptions
-
-#### **3. Email Service Integration (Amazon SES)**
-
-**External Email Provider Interface:**
-
-```
-Protocol: SMTP / SES API
-Endpoint: email-smtp.us-east-1.amazonaws.com
-Port: 587 (TLS)
-```
-
-**Email Templates:**
-
-| **Template** | **Trigger** | **Recipient** |
-|--------------|-------------|---------------|
-| case_assigned | New case assigned to doctor | Doctor |
-| prediagnostic_ready | AI prediction completed | Doctor |
-| diagnosis_ready | Final diagnosis available | Patient |
-| account_verification | New user registration | User |
-
-**Integration Points:**
-- **Outbound**: NeumoDiagnostics → Amazon SES → External email addresses
-- **Inbound**: Bounce/complaint handling via SNS webhooks
-
-#### **4. Storage API Integration (Amazon S3)**
-
-**Image Storage Interface:**
-
-```
-Protocol: HTTPS (S3 API)
-Endpoint: s3.us-east-1.amazonaws.com
-```
-
-**Pre-Signed URL Generation (Secure External Upload):**
-
-External systems can obtain temporary upload URLs:
-
-```bash
-POST /api/v1/radiographs/upload-url
-Authorization: Bearer <JWT>
-
-Response:
-{
-  "upload_url": "https://neumo-radiography-images.s3.amazonaws.com/...",
-  "expires_in": 300,
-  "max_size_mb": 50
-}
-```
-
-**Benefits:**
-- ✅ Direct upload to S3 (bypass application servers)
-- ✅ Temporary credentials (expire after use)
-- ✅ Reduced server load
-
-#### **5. Authentication and Authorization (External Systems)**
-
-**API Key Authentication (System-to-System):**
-
-```bash
-POST /auth/token
-Content-Type: application/json
-X-API-Key: <external-system-api-key>
-
-{
-  "system_id": "external-hospital-A",
-  "scopes": ["read:patients", "read:cases"]
-}
-
-Response:
-{
-  "access_token": "eyJhbGc...",
-  "token_type": "Bearer",
-  "expires_in": 3600
-}
-```
-
-**OAuth 2.0 Support (Future Enhancement):**
-
-```
-Authorization Endpoint: /oauth/authorize
-Token Endpoint: /oauth/token
-Supported Grant Types: authorization_code, client_credentials
-```
-
-#### **6. Data Format Transformation (Adapter Pattern)**
-
-**Content Negotiation:**
-
-```bash
-# Request JSON response (default)
-GET /patients/12345
-Accept: application/json
-
-# Request XML response
-GET /patients/12345
-Accept: application/xml
-```
-
-**FHIR Compatibility (Healthcare Standard):**
-
-```bash
-# FHIR-compliant patient resource
-GET /fhir/Patient/12345
-Accept: application/fhir+json
-
-Response (FHIR R4 format):
-{
-  "resourceType": "Patient",
-  "id": "12345",
-  "name": [{
-    "use": "official",
-    "family": "Doe",
-    "given": ["John"]
-  }],
-  "gender": "male",
-  "birthDate": "1980-01-01"
-}
-```
-
----
-
-### **Applied Interoperability Tactics**
-
-#### **Locate**
-
-- **Service Discovery**: AWS Cloud Map for internal service location
-- **DNS**: Route 53 for external API endpoint resolution
-
-#### **Manage Interfaces**
-
-- **API Gateway**: Single entry point for all external requests
-- **Versioning**: URL and header-based API versioning
-- **Documentation**: OpenAPI/Swagger specification for API documentation
-
-#### **Coordinate**
-
-- **Orchestrate**: API Gateway orchestrates calls to multiple backend services
-- **Event-Based**: Asynchronous notifications via message queue (Amazon MQ)
-
-#### **Exchange Data**
-
-- **Translate**: API Gateway transforms between external and internal data formats
-- **Adapter Pattern**: Service adapters for each external integration (SES, S3)
-- **Standard Protocols**: REST (JSON), GraphQL, HTTPS, SMTP
-
----
-
-## 📊 **Prototype 4 Compliance Summary**
-
-### **✅ Requirements Fulfilled**
-
-#### **Functional Requirements**
-- ✅ Complete functional coverage defined for NeumoDiagnostics medical platform
-- ✅ All modules documented in Decomposition Structure (Authentication, Cases Management, Prediagnostic, Notifications)
-
-#### **Non-Functional Requirements**
-
-**Reliability Scenarios (4 Required):**
-- ✅ **Scenario 1**: Replication Pattern (Hot Spare) - RDS Multi-AZ and DocumentDB Cluster
-- ✅ **Scenario 2**: Service Discovery Pattern - AWS Cloud Map + ECS Service Discovery
-- ✅ **Scenario 3**: Cluster Pattern - ECS Clusters, DocumentDB Cluster, Amazon MQ Cluster  
-- ✅ **Scenario 4**: Health Check and Circuit Breaker Pattern (team-defined)
-
-**Interoperability:**
-- ✅ Interoperability scenario with external systems via RESTful API, GraphQL, Amazon SES
-
-**Security (Maintained from Prototype 3):**
-- ✅ Network Segmentation Pattern (VPC with public/private subnets)
-- ✅ Reverse Proxy Pattern (Application Load Balancer + AWS WAF)
-- ✅ Token Authentication (JWT)
-- ✅ Secure Channel (HTTPS/TLS via ACM)
-
-**Performance and Scalability (Maintained from Prototype 3):**
-- ✅ Load Balancer Pattern (ALB with multi-AZ distribution)
-- ✅ Throttling (AWS WAF rate limiting)
-- ✅ Auto-Scaling (ECS Service Auto Scaling)
-
-#### **Architectural Structures**
-- ✅ **Component and Connector (C&C) Structure**: Updated for AWS deployment
-- ✅ **Deployment Structure**: Complete AWS multi-AZ infrastructure
-- ✅ **Layered Structure**: 7-tier architecture with AWS services
-- ✅ **Decomposition Structure**: Module breakdown with service mapping
+**Description:**
+- **Source (Fuente):** Doctor using web-front-end
+- **Stimulus (Estímulo):** The doctor makes a diagnostic for one of the cases
+- **Artifact (Artefacto):**  The system
+- **Environment (Ambiente):**  System during normal execution
+- **Response (Respuesta):** The API GAteway coordinates the communication between different components (auth-be, prediagnostic-be, message_producer, etc.) to generate a response to the user
+- **Response Measure (Medición de la respuesta):** Percentaje of requests fulfilled
