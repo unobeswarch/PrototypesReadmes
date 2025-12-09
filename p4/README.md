@@ -160,22 +160,22 @@ This view describes runtime components, the interfaces they provide/require, and
 
 ### Application Services (ECS Fargate)
 
-| Service | Port | Description | Relationships |
-|---------|------|-------------|---------------|
-| **web-frontend** | 3000 | Next.js UI with SSR | → api-gateway (Server Actions) |
-| **api-gateway** | 8080 | GraphQL/REST, backend entry point | → auth-be, prediagnostic-be, message-producer |
-| **auth-be** | 8081 | Authentication and user management | → RDS PostgreSQL |
-| **prediagnostic-be** | 8000 | ML model for pneumonia diagnosis (2 replicas) | → MongoDB, S3 |
-| **message-producer** | 8082 | Publishes events to message queue | → RabbitMQ |
-| **notification-be** | 8003 | Worker that consumes queue and sends notifications | ← RabbitMQ (consumes) |
+| Service | Port | Description | Min Replicas | Max Replicas | Relationships |
+|---------|------|-------------|--------------|--------------|---------------|
+| **web-frontend** | 3000 | Next.js UI with SSR | 1 | 1 | → api-gateway (Server Actions) |
+| **api-gateway** | 8080 | GraphQL/REST, backend entry point | 1 | 3 | → auth-be, prediagnostic-be, message-producer |
+| **auth-be** | 8081 | Authentication and user management | 1 | 1 | → RDS PostgreSQL |
+| **prediagnostic-be** | 8000 | ML model for pneumonia diagnosis | 1 | 2 | → MongoDB, S3 |
+| **message-producer** | 8082 | Publishes events to message queue | 1 | 1 | → RabbitMQ |
+| **notification-be** | 8003 | Worker that consumes queue and sends notifications | 1 | 1 | ← RabbitMQ (consumes) |
 
 ### Data Services
 
-| Service | Port | Description | Relationships |
-|---------|------|-------------|---------------|
-| **MongoDB** | 27017 | NoSQL database for diagnostics and images | ← prediagnostic-be |
-| **RabbitMQ** | 5672 | Message broker for async communication | ← message-producer, → notification-be |
-| **RDS PostgreSQL** | 5432 | Relational database for users/auth | ← auth-be |
+| Service | Port | Description | Min Replicas | Max Replicas | Relationships |
+|---------|------|-------------|--------------|--------------|---------------|
+| **MongoDB** | 27017 | NoSQL database for diagnostics and images | 3 | 3 | ← prediagnostic-be |
+| **RabbitMQ** | 5672 | Message broker for async communication | 1 | 1 | ← message-producer, → notification-be |
+| **RDS PostgreSQL** | 5432 | Relational database for users/auth | 1 | 1 | ← auth-be |
 
 ### Service Discovery (AWS Cloud Map)
 
