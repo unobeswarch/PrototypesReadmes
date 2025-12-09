@@ -213,107 +213,137 @@ All services register in the `neumo.internal` namespace, enabling dynamic discov
 
 #### **🎯 Description of Architectural Elements and Relations:**
 
-Our system is structured in **seven distinct layers** (tiers), each with specific responsibilities:
+Our NeumoDiagnostics system is structured in **seven distinct layers** (tiers), each with specific responsibilities and well-defined interactions:
 
-**Layer 1: Presentation**
-- **Purpose**: User interface and interaction
+##### 🖼️ **Layer 1: Presentation**
+- **Purpose**: User interface and interaction management
 - **Components**: 
-  - Web Front-end (Next.js) - ECS Fargate
-  - Mobile App (future)
-  - External System Clients
-- **Relations**: Sends requests to Layer 2 (Load Balancing)
+  - Web Front-end (Next.js on ECS Fargate)
+  - CLI Front-end (Rust, runs locally on user's machine)
+- **Relations**: Generates requests that are forwarded to the Load Balancing layer via HTTP
 
-**Layer 2: Load Balancing and Security Gateway**
-- **Purpose**: Traffic distribution, SSL termination, security filtering
-- **Components**:
-  - Application Load Balancer (ALB)
-  - AWS WAF (Web Application Firewall)
-  - Route 53 (DNS)
-  - CloudFront (CDN - optional)
+##### 🔄 **Layer 2: Load Balancing and Routing**
+- **Purpose**: Request distribution, path-based routing, and health monitoring
+- **Key Components**: 
+  - Public ALB (internet-facing, receives external traffic)
+  - Internal ALB (VPC-only, handles SSR Server Actions)
 - **Relations**: 
-  - Receives requests from Layer 1
-  - Distributes to Layer 3 (API Gateway)
-  - Enforces security policies
+  - Receives all incoming requests from Presentation layer
+  - Distributes requests to `web-frontend` and `api-gateway` using path-based routing
+  - Performs health checks and removes unhealthy targets from rotation
+  - Acts as single entry point for external traffic
 
-**Layer 3: Synchronous Orchestration**
-- **Purpose**: Request routing, composition, authentication
-- **Components**:
-  - API Gateway [3-9 instances] (Go) - ECS Fargate
-  - AWS Cloud Map (Service Discovery)
-- **Relations**:
-  - Receives requests from Layer 2
-  - Routes to Layer 4 (Logic services)
-  - Queries service registry for backend locations
+##### 🔀 **Layer 3: Synchronous Orchestration**
+- **Purpose**: Real-time request routing, validation, and orchestration
+- **Key Component**: API Gateway (Go on ECS Fargate)
+- **Relations**: 
+  - Receives load-balanced requests from ALBs
+  - Routes requests to appropriate Logic layer components via Cloud Map DNS
+  - Ensures synchronous communication patterns (GraphQL + REST)
+  - Validates and composes requests before forwarding
 
-**Layer 4: Logic (Business Services)**
-- **Purpose**: Core business logic and functionality
-- **Components**:
-  - auth-be (Go) - ECS Fargate
-  - prediagnostic-be (Python) - ECS Fargate
-  - message-producer (Go) - ECS Fargate
-  - notification-be (Go) - ECS Fargate
-- **Relations**:
-  - Processes requests from Layer 3
-  - Accesses Layer 6 (Data) exclusively
-  - Publishes events to Layer 5 (Asynchronous Communication)
+##### ⚙️ **Layer 4: Logic**
+- **Purpose**: Core business logic and system functionality
+- **Components**: 
+  - auth-be (Go) - Authentication and user management
+  - prediagnostic-be (Python) - ML-based pneumonia diagnosis
+  - message-producer (Go) - Event publishing to message queue
+  - notification-be (Python) - Async notification worker
+- **Relations**: 
+  - Processes requests from API Gateway
+  - Exclusive access to system data through Data layer
+  - Implements main system functionalities
+  - Publishes events to Asynchronous Communication layer
 
-**Layer 5: Asynchronous Communication**
-- **Purpose**: Non-blocking message handling
-- **Components**:
-  - Amazon MQ (RabbitMQ) - Multi-AZ cluster
-- **Relations**:
-  - Receives messages from message-producer (Layer 4)
-  - Delivers messages to notification-be (Layer 4)
-  - Enables decoupled communication
+##### 📨 **Layer 5: Asynchronous Communication**
+- **Purpose**: Non-blocking message handling and event-driven communication
+- **Technology**: RabbitMQ (AMQP protocol, on ECS Fargate)
+- **Relations**: 
+  - Manages asynchronous message queues between `message-producer` and `notification-be`
+  - Enables system to continue processing while messages are queued
+  - Supports decoupled component communication
 
-**Layer 6: Data**
-- **Purpose**: Data persistence and retrieval
-- **Components**:
-  - RDS PostgreSQL (Multi-AZ) - auth data
-  - DocumentDB (Cluster) - clinical data
-  - Amazon S3 - images and files
-    - neumo-radiography-images
-    - neumo-profile-images
-    - neumo-backup-data
-- **Relations**:
-  - Accessed exclusively by Layer 4 services
-  - Provides ACID transactions (RDS, DocumentDB)
-  - Provides object storage (S3)
+##### 💾 **Layer 6: Data**
+- **Purpose**: Data storage and integrity management
+- **Components**: 
+  - RDS PostgreSQL (`auth-db`) - User and authentication data
+  - MongoDB (ECS Fargate) - Clinical documents and diagnostics
+  - S3 Buckets - Radiography and profile image storage
+- **Relations**: Provides persistent storage for all system data, accessed exclusively by Logic layer components
 
-**Layer 7: External Communication**
+##### 🌐 **Layer 7: External Communication**
 - **Purpose**: Integration with external services
-- **Components**:
-  - Amazon SES (Email service)
-  - External Healthcare Systems (via API)
-  - Third-party Services
-- **Relations**:
-  - Invoked by Layer 4 (notification-be)
-  - Extends system capabilities
+- **Services**: External Email Provider (SMTP)
+- **Relations**: 
+  - Extends system capabilities through external APIs
+  - Handles email notifications triggered by `notification-be`
 
-**Layer Communication Rules:**
-- Each layer can only communicate with adjacent layers (strict layering)
-- Upper layers depend on lower layers
-- Lower layers are unaware of upper layers
-- Cross-layer communication prohibited (enforced by security groups)
-
-#### **🏛️ Description of Architectural Patterns Used:**
-
-- **7-Tier Layered Pattern**: Strict hierarchical organization
-- **API Gateway Pattern**: Layer 3 orchestrates backend services
-- **Load Balancer Pattern**: Layer 2 distributes traffic
-- **Broker Pattern**: Layer 5 enables asynchronous messaging
-- **Repository Pattern**: Layer 6 abstracts data access
-- **Service Layer Pattern**: Layer 4 encapsulates business logic
-
-**AWS Service Mapping:**
-- **Layer 2**: AWS managed services (ALB, WAF, Route 53)
-- **Layers 3-4**: ECS Fargate (serverless containers)
-- **Layer 5**: Amazon MQ (managed message broker)
-- **Layer 6**: Managed databases (RDS, DocumentDB) + S3
-- **Layer 7**: AWS SES + external APIs
+**Evolution from Docker Compose to AWS ECS:**
+| Original (Docker Compose) | Current (AWS ECS) |
+|---------------------------|-------------------|
+| NginX Reverse Proxy (SSL termination, load balancing) | AWS ALB (path-based routing, health checks, managed SSL-ready) |
+| Weighted Round-Robin in NginX config | ALB Target Groups with health-based routing |
+| Static Docker network | VPC with public/private subnets + Cloud Map DNS |
+| Single-host deployment | Multi-AZ Fargate (serverless containers) |
+| Manual container management | ECS auto-scaling and task replacement |
 
 ---
 
+#### **🏛️ Description of Architectural Patterns Used:**
+
+#### 🏛️ **Description of Architectural Patterns in Layered View**
+
+As described in the C&C view, we implemented several software architectural patterns. Here we examine them within our layered architecture for better understanding:
+
+**7-Tier Layered Pattern**: This organizational pattern structures our system into 7 distinct layers (tiers) as described above. Each layer follows a strict hierarchical order, where upper layers can only communicate with adjacent lower layers.
+
+**Load Balancer Pattern**: Located in Layer 2 (Load Balancing and Routing), AWS Application Load Balancers (Public and Internal) act as the entry points for external and internal traffic respectively. They provide path-based routing, health monitoring, and automatic removal of unhealthy targets before routing to backend services.
+
+**API Gateway Pattern**: This communication pattern is located in Layer 3 (Synchronous Orchestration). The API Gateway acts as an intermediary between the load balancers and backend microservices. It handles request composition, validation, GraphQL/REST routing, and service discovery via Cloud Map DNS while following the hierarchical structure.
+
+**Service Discovery Pattern**: Spanning Layers 3-6, AWS Cloud Map provides DNS-based service discovery (`*.neumo.internal`). Services register themselves and can locate other services dynamically without hardcoded IPs, enabling flexible inter-layer communication within the VPC.
+
+**Broker Pattern**: This asynchronous communication pattern is located in Layer 5 (Asynchronous Communication). The message broker (RabbitMQ) decouples producers (`message-producer`) from consumers (`notification-be`) through AMQP queues. The broker itself belongs to this layer, while producers and consumers reside in the Logic layer (Layer 4).
+
+**Evolution from Docker Compose to AWS ECS:**
+| Original (Docker Compose) | Current (AWS ECS) |
+|---------------------------|-------------------|
+| NginX Reverse Proxy (SSL termination, load balancing) | AWS ALB (path-based routing, health checks, managed SSL-ready) |
+| Weighted Round-Robin in NginX config | ALB Target Groups with health-based routing |
+| Static Docker network | VPC with public/private subnets + Cloud Map DNS |
+| Single-host deployment | Multi-AZ Fargate (serverless containers) |
+| Manual container management | ECS auto-scaling and task replacement |
+
+---
+
+#### 🧠 **Logic Layers**
+As you can see, there are logic layers within each component. In almost all components, we tried to build them using a Clean Architecture approach as the foundation for managing each component’s logic.
+
+<div align="center">
+
+![Layered Structure](./images/ca.png)
+
+</div>
+
+Now, we’re going to briefly explain the responsibility of each layer. This explanation will be general, since this approach is applied in almost all components.
+
+- **Presentation Layer (UI)** 🎨  
+  Handles user interaction and displays information.  
+  It sends user actions to the application layer.
+
+- **Application Layer (Services / Use Cases)** ⚙️  
+  Contains the business logic that coordinates entities and defines use cases.
+
+- **Domain Layer (Models / Entities)** 🧠  
+  Holds the core business rules and entities.  
+  It’s completely independent from external concerns.
+
+- **Infrastructure Layer** 🧩  
+  Implements technical details such as database access, APIs, message brokers, and external services.
+
+> **In short:** Infrastructure *implements*, Domain *defines*, Application *coordinates*, and Presentation *interacts*.
+
+---
 ### 🧩 **Decomposition Structure**
 
 #### 🔍 **Decomposition View**
