@@ -618,25 +618,26 @@ Our architecture implements multiple reliability patterns to ensure high availab
 
 ### **Reliability Scenarios**
 
-##### **Scenario 1: Replication Pattern (Hot Spare)**
+ **Scenario 1: Replication Pattern (Hot Spare)**
 
 <div align="center">
 
-![Replication Pattern](./images/Escenario%20-%20Replication%20Pattern.png)
-
+![Replication Pattern](./images/RedundantSpare.png)
 </div>
 
+Tactic: Redundant spare
+
 **Description:**
-- **Source (Fuente):** User (doctor or patient)
-- **Stimulus (Estímulo):** User sends a request which implies to make an action on the database auth-db
-- **Artifact (Artefacto):** The system
-- **Environment (Ambiente):** System with a failure on the database auth-db
-- **Response (Respuesta):** The hot spare database is used to keep the system working
-- **Response Measure (Medición de la respuesta):** Number of failed requests sent to the database 
+- **Source (Fuente):** User (doctor or patient) / Cloud 
+- **Stimulus (Estímulo):** An instance of api-gateway crashes due to a fault
+- **Artifact (Artefacto):** ECS/ Api Gateway target group
+- **Environment (Ambiente):** System during its normal execution.
+- **Response (Respuesta):** The ALB detects that the API gateway is no longer in a healthy state, so it starts redirecting traffic to the second active API gateway instance, while the ECL initiates a new task to ensure there are at least two API gateway instances again.
+- **Response Measure (Medición de la respuesta):** Healthy status of the second API gateway instance and number of requests received
 
 **Applied Pattern:** Replication Pattern (Hot Spare)
 
-##### **Scenario 2: Cluster Pattern**
+**Scenario 2: Cluster Pattern**
 
 <div align="center">
 
@@ -672,25 +673,25 @@ Our architecture implements multiple reliability patterns to ensure high availab
 
 **Applied Pattern:** Load Balancer
 
-##### **Scenario 4: Service Discovery Pattern**
+**Scenario 4: Service Discovery Pattern**
 
 <div align="center">
 
-![Service Discovery Pattern](./images/Escenario%20-%20Service%20Discovery%20Pattern.png)
-
+![Service Discovery Pattern](./images/discoveryPattern.png)
 </div>
+Tactic: Reconfiguration
 
 **Description:**
 - **Source (Fuente):** User (doctor or patient)
-- **Stimulus (Estímulo):** User sends a request
+- **Stimulus (Estímulo):** A new instance of auth-be component is added.
 - **Artifact (Artefacto):** The system
-- **Environment (Ambiente):** The system during normal execution
-- **Response (Respuesta):** The system detects all the available API Gateway instances to allow the load balancer to choose the instance that is going to process the request
-- **Response Measure (Medición de la respuesta):** Number of requests that each instance has processed
+- **Environment (Ambiente):** ECS (Elastic Container Service) /VPC/Cloud Map
+- **Response (Respuesta):** The system selects the subnet, dynamically assigns a private IP address (DHCP), registers the IP address in Cloud Map, and updates the DNS.
+- **Response Measure (Medición de la respuesta):** IPs that are active in the system
 
 **Applied Pattern:** Service Discovery Pattern
 
-##### **Scenario 5: Cluster pattern**
+**Scenario 5: Cluster pattern**
 
 <div align="center">
 
