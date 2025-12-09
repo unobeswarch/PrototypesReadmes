@@ -644,13 +644,13 @@ Our architecture implements multiple reliability patterns to ensure high availab
 
 **Description:**
 - **Source (Fuente):** Patient using the system from his PC
-- **Stimulus (Estímulo):** User enters to his dashboard to se his radiographies and their states
+- **Stimulus (Estímulo):** User enters to his dashboard to see his radiographies and their states
 - **Artifact (Artefacto):** The system
 - **Environment (Ambiente):** System during the normal execution
 - **Response (Respuesta):** The MongoDB cluster filters the radipgraphies by user's id and returns the information to visualize it in the front end
 - **Response Measure (Medición de la respuesta):** Percentage of correctly returned cases
 
-**Applied Pattern:** 
+**Applied Pattern:** Cluster Pattern
 
 ##### **Scenario 3: Load Balancer with Removal From Service Tactic implementend**
 
@@ -688,12 +688,31 @@ Our architecture implements multiple reliability patterns to ensure high availab
 
 **Applied Pattern:** Service Discovery Pattern
 
+##### **Scenario 5: Cluster pattern**
+
+<div align="center">
+
+![Service Discovery Pattern](./images/Copia%20de%20Escenario%20-%20cluster.png)
+
+</div>
+
+**Description:**
+- **Source (Fuente):** User using the aplication
+- **Stimulus (Estímulo):** User uploads a x-ray
+- **Artifact (Artefacto):** The system
+- **Environment (Ambiente):** The system with one of its prediagnostic-be nodes down
+- **Response (Respuesta):** The system works correctly with the upload of the x-ray and its prediction
+- **Response Measure (Medición de la respuesta):** Number of requests processed
+
+**Applied Pattern:** Cluster Pattern
+
 #### **Applied Architectural Tactics**
 
 - **Redundant Spare**
 - **Removal from service**
 
 ### **Interoperability Scenario**
+
 
 ##### **Scenario 1: Interoperability**
 
