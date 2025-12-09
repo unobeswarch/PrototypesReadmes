@@ -50,162 +50,77 @@ Our NeumoDiagnostics system employs multiple architectural views to ensure compr
 </div>
 
 #### **🎯 Description of Architectural Elements and Relations:**
+This view describes runtime components, the interfaces they provide/require, and the connectors between them (see figure). It focuses on communication paths and protocols rather than implementation internals.
 
-This view describes runtime components deployed on AWS, the interfaces they provide/require, and the connectors between them. It focuses on communication paths, protocols, and AWS-managed services.
+- User Interfaces
+	- `web browser`: Web-based user interface for accessing the system through graphical interface.
+		- Connectors: HTTPS to `web-front-end`.
+	- `cmd` (Command Line): Terminal-based interface for system access via command-line tools.
+		- Connectors: HTTPS to `cli-front-end`.
 
-**User Interfaces:**
-- `web browser`: Web-based user interface accessing the system through HTTPS
-  - Connectors: HTTPS to `Application Load Balancer`
-- `mobile app` (future): Mobile application for healthcare professionals
-  - Connectors: HTTPS to `Application Load Balancer`
-- `external systems`: Third-party healthcare systems integrating via API
-  - Connectors: HTTPS-REST/GraphQL to `Application Load Balancer`
+- Clients
+	- `web-front-end` (Next.js): UI for doctors and patients.
+		- Connectors: HTTPS-REST to `reverse-proxy` for authentication and file uploads; HTTP-GRAPHQL to `reverse-proxy` for data queries/mutations.
+	- `cli-front-end` (Rust): Command-line client as a secondary interface.
+		- Connectors: HTTPS-REST to `reverse-proxy`.
 
-**Edge Layer:**
-- `Route 53`: DNS service for domain name resolution
-  - Connectors: DNS queries from clients
-- `CloudFront` (optional): CDN for static content delivery
-  - Connectors: HTTPS to clients, origin requests to ALB
-- `AWS WAF`: Web application firewall for security
-  - Connectors: Inspects traffic to/from ALB
+- Load Balancer and Security Layer
+	- `reverse-proxy` (NginX): Acts as load balancer and security gateway. Single entry point for all client requests.
+		- Provided interfaces: HTTP endpoints for REST and GraphQL.
+		- Required connectors: HTTP-REST and HTTP-GRAPHQL to multiple `api-gateway` instances (load balanced).
+		- Functions: SSL/TLS termination, request filtering, load distribution across API Gateway instances.
 
-**Load Balancing and Routing:**
-- `Application Load Balancer`: Single entry point for all HTTP/HTTPS traffic
-  - Provided interfaces: HTTPS:443 (terminates SSL/TLS), HTTP:80 (redirects to HTTPS)
-  - Required connectors: HTTP to ECS services (web-frontend, api-gateway)
-  - Target Groups: `web-frontend-tg`, `api-gateway-tg`
-  - Functions: SSL/TLS termination, path-based routing, health checks, Multi-AZ distribution
+- Gateway and orchestration
+	- `api-gateway` [1,2,3] (Go): Multiple instances for high availability. Single entry point for backend services, request validation, composition, and orchestration.
+		- Provided interfaces: `/query` (GraphQL), REST endpoints for auth and simple listings.
+		- Required connectors: HTTP-REST to `auth-be`, `prediagnostic-be`, and `message_producer`.
 
-**Frontend Services (ECS Fargate):**
-- `web-frontend` [2-6 tasks]: Next.js application for user interface
-  - Provided interfaces: HTTP:3000
-  - Required connectors: HTTPS-REST and HTTP-GRAPHQL to `api-gateway`
-  - Auto-scaling: Based on CPU, memory, and request count
-  
-**API Gateway and Orchestration (ECS Fargate):**
-- `api-gateway` [3-9 tasks]: Go-based API Gateway with service discovery
-  - Provided interfaces: HTTP:8080 (REST endpoints, GraphQL endpoint at `/graphql`)
-  - Required connectors: 
-    - HTTP-REST to `auth-be`, `prediagnostic-be`, `message-producer`
-    - Service discovery queries to `AWS Cloud Map`
-  - Functions: Request validation, composition, orchestration, authentication middleware
-  - Auto-scaling: Weighted distribution across tasks
+- Backend services
+	- `auth-be` (Go): Identity and session services.
+		- Provided: REST endpoints for login, logout, registration, profile image upload.
+		- Required connectors: PostgreSQL driver to `auth-db`; File Storage Driver to `Profile Image Storage`.
+	- `prediagnostic-be` (Python): Imaging and (pre)diagnostic workflows.
+		- Provided: REST endpoints for radiograph upload, prediction, case queries, and diagnosis registration.
+		- Required connectors: MongoDB driver to `prediagnostic-db`; File Storage Driver to `Radiography Image Storage`.
+	- `message_producer` (Go): Publishes domain messages.
+		- Provided: REST endpoint used by `api-gateway` to request a notification.
+		- Required connectors: AMQP to `message-broker`; File Storage Driver for temporary storage.
+	- `notification-be` (Go): Asynchronous notifications consumer.
+		- Provided: Background consumer.
+		- Required connectors: AMQP subscription to `message-broker`; SMTP to `Mailgun` (external provider).
 
-**Backend Services (ECS Fargate):**
-- `auth-be` [2-6 tasks]: Go-based authentication and user management service
-  - Provided interfaces: HTTP:8081 (login, logout, registration, profile management)
-  - Required connectors: 
-    - PostgreSQL driver to `RDS PostgreSQL`
-    - AWS SDK to `S3` (profile images bucket)
-    - AWS Secrets Manager (database credentials, JWT secrets)
-  - Service Discovery: Registered in `AWS Cloud Map` as `auth-be.neumodiagnostics.local`
+- Data stores and external services
+	- `auth-db` (PostgreSQL): identity store accessed only by `auth-be` via DB driver.
+	- `prediagnostic-db` (MongoDB): clinical documents accessed only by `prediagnostic-be` via MongoDB driver.
+	- `message-broker` (AMQP): decouples producer and consumer via queues/topics.
+	- `Mailgun` (SMTP): external email service used by `notification-be`.
+	- `Radiography Image Storage` and `Profile Image Storage`: binary storage behind file drivers used by `prediagnostic-be` and `auth-be` respectively.
 
-- `prediagnostic-be` [2-6 tasks]: Python-based diagnostic and ML inference service
-  - Provided interfaces: HTTP:8000 (radiograph upload, prediction, case management, diagnosis registration)
-  - Required connectors:
-    - MongoDB driver to `DocumentDB`
-    - AWS SDK to `S3` (radiography images bucket)
-    - AWS Secrets Manager (database credentials)
-  - Service Discovery: Registered in `AWS Cloud Map` as `prediagnostic-be.neumodiagnostics.local`
-
-- `message-producer` [2-4 tasks]: Go-based message publisher
-  - Provided interfaces: HTTP:8082 (notification requests from api-gateway)
-  - Required connectors:
-    - AMQP to `Amazon MQ`
-    - AWS SDK to `S3` (temporary storage)
-  - Service Discovery: Registered in `AWS Cloud Map` as `message-producer.neumodiagnostics.local`
-
-- `notification-be` [2-4 tasks]: Go-based asynchronous notification consumer
-  - Provided interfaces: Background consumer (no HTTP interface)
-  - Required connectors:
-    - AMQP subscription to `Amazon MQ`
-    - AWS SES SDK (email sending)
-    - AWS Secrets Manager (SES credentials)
-  - Functions: Consumes notification messages, sends emails via SES
-
-**Data Stores and Managed Services:**
-- `RDS PostgreSQL` (Multi-AZ): Relational database for authentication and user data
-  - Provided interfaces: PostgreSQL protocol on port 5432
-  - Configuration: Multi-AZ deployment with automatic failover
-  - Accessed exclusively by: `auth-be`
-  - Replication: Synchronous replication to standby in different AZ
-
-- `DocumentDB` (Cluster): MongoDB-compatible database for clinical documents
-  - Provided interfaces: MongoDB protocol on port 27017
-  - Configuration: 1 writer + 2 reader instances across 3 AZs
-  - Accessed exclusively by: `prediagnostic-be`
-  - Replication: Cluster with automatic failover
-
-- `Amazon MQ` (RabbitMQ Cluster): Message broker for asynchronous communication
-  - Provided interfaces: AMQP on port 5672, Management UI on port 15672
-  - Configuration: Active/Standby deployment across 2 AZs
-  - Accessed by: `message-producer` (publisher), `notification-be` (consumer)
-
-- `Amazon S3` (Multiple Buckets): Object storage for images and files
-  - `neumo-radiography-images`: Patient X-ray images (accessed by `prediagnostic-be`)
-  - `neumo-profile-images`: User profile pictures (accessed by `auth-be`)
-  - `neumo-backup-data`: Database backups
-  - `neumo-alb-logs`: Load balancer access logs
-  - Provided interfaces: S3 API over HTTPS
-  - Features: Versioning, lifecycle policies, encryption at rest (SSE-S3/SSE-KMS)
-
-- `Amazon SES`: Email service for notifications
-  - Provided interfaces: SMTP (port 587), SES API
-  - Accessed by: `notification-be`
-  - Features: Bounce handling, complaint tracking
-
-**Service Discovery and Monitoring:**
-- `AWS Cloud Map`: Service registry for ECS service discovery
-  - Namespace: `neumodiagnostics.local`
-  - Registered services: api-gateway, auth-be, prediagnostic-be, message-producer
-  - DNS-based discovery with automatic registration/deregistration
-
-- `CloudWatch`: Monitoring and logging service
-  - Metrics: ECS Container Insights, RDS Performance Insights, ALB metrics
-  - Logs: Container logs, VPC Flow Logs, CloudTrail audit logs
-  - Alarms: CPU, memory, error rates, unhealthy targets
-
-- `AWS X-Ray`: Distributed tracing service
-  - Traces requests across: ALB → api-gateway → backend services
-  - Provides: Service map, latency analysis, error detection
-
-**Security Services:**
-- `AWS Secrets Manager`: Secure credential storage
-  - Stores: Database passwords, API keys, JWT secrets, SES credentials
-  - Features: Automatic rotation, encryption with KMS
-
-- `AWS KMS`: Key management service
-  - Encrypts: RDS data, DocumentDB data, S3 objects, Secrets Manager secrets
-
-**Connector Summary and Directionality:**
-- HTTPS: `clients → Route 53 → CloudFront → WAF → ALB`
-- HTTP: `ALB → web-frontend (port 3000), ALB → api-gateway (port 8080)`
-- HTTP-REST: `api-gateway → auth-be:8081, prediagnostic-be:8000, message-producer:8082`
-- HTTP-GRAPHQL: `web-frontend → api-gateway:8080/graphql`
-- PostgreSQL: `auth-be → RDS PostgreSQL:5432`
-- MongoDB: `prediagnostic-be → DocumentDB:27017`
-- AMQP: `message-producer → Amazon MQ:5672 → notification-be`
-- SMTP/SES: `notification-be → Amazon SES:587`
-- S3 API: `auth-be → S3 (profile-images), prediagnostic-be → S3 (radiography-images)`
-- Service Discovery: `api-gateway → AWS Cloud Map → backend services`
+- Connector summary and directionality
+	- HTTPS: `web browser → web-front-end`, `cmd → cli-front-end`.
+	- HTTPS-REST: `cli-front-end → reverse-proxy → api-gateway [1,2,3]`.
+	- HTTPS-GRAPHQL: `web-front-end → reverse-proxy → api-gateway [1,2,3]`.
+	- HTTP-REST: `web-front-end → reverse-proxy → api-gateway [1,2,3]` (for auth and uploads).
+	- HTTP-REST (internal): `api-gateway → (auth-be | prediagnostic-be | message_producer)`.
+	- AMQP: `message_producer → message-broker → notification-be`.
+	- SMTP: `notification-be → Mailgun`.
+	- DB drivers: `auth-be → auth-db (PostgreSQL)`, `prediagnostic-be → prediagnostic-db (MongoDB)`.
+	- File drivers: `prediagnostic-be → Radiography Image Storage`, `auth-be → Profile Image Storage`, `message_producer → File Storage`.
 
 #### **🏛️ Description of Architectural Styles and Patterns Used:**
 
-- **Client-Server**: Web browsers and mobile apps act as clients connecting through ALB
-- **Microservices Architecture**: Independent, deployable services (auth-be, prediagnostic-be, notification-be, message-producer) with separate data stores
-- **API Gateway Pattern**: Unified entry point for backend services with request composition and orchestration
-- **Service Mesh (via AWS Cloud Map)**: Service discovery and dynamic routing between microservices
-- **Load Balancer Pattern**: Application Load Balancer distributes traffic across multiple ECS tasks
-- **Reverse Proxy Pattern**: ALB acts as reverse proxy with SSL/TLS termination and request filtering
-- **Broker Pattern (Mediated Messaging)**: Amazon MQ decouples message producers from consumers
-- **CQRS (Command Query Responsibility Segregation)**: Read operations to DocumentDB replicas, write operations to primary
-- **Event-Driven Architecture**: Asynchronous notifications via message broker
-- **Serverless Containers**: AWS Fargate eliminates server management
-- **Database per Service**: Each microservice has its own database (RDS for auth, DocumentDB for prediagnostic)
-- **Externalized Configuration**: Secrets Manager for credentials, Parameter Store for configuration
-- **Health Check Pattern**: Multi-level health monitoring (ALB, ECS, application)
-- **Circuit Breaker Pattern**: Prevent cascading failures between services
-- **Bulkhead Pattern**: Service isolation through separate ECS services, databases, and resource limits
+- **Client–Server:** browsers/CLI act as clients connecting to the system through the reverse proxy.
+- **Reverse Proxy Pattern:** NginX serves as the single entry point, providing SSL/TLS termination, request filtering, and load balancing capabilities.
+- **Load Balancer Pattern:** Weighted Round-Robin algorithm distributes requests across multiple `api-gateway` instances [1,2,3] for high availability and performance.
+- **API Gateway Pattern:** Multiple `api-gateway` instances expose a unified surface for multiple backends and tailor responses for the UI (GraphQL + REST).
+- **Layered Style (tiers):** Presentation (clients), Security/Load Balancing (reverse-proxy), Communication (gateway), Logic (backends), Data (datastores), Asynchronous (broker), and External (Mailgun). Connectors respect top-down usage between adjacent tiers.
+- **Service-Based:** `auth-be`, `prediagnostic-be`, `notification-be`, and `message_producer` are independently deployable services with well-defined interfaces.
+- **Broker Pattern (mediated messaging):** `message_producer` publishes messages to `message-broker`, `notification-be` consumes; the broker decouples producers and consumers and enables retry/DLQ.
+- **GraphQL for client composition:** `web-front-end` queries only required fields via `/query` to avoid over-/under-fetching.
+- **REST for transactional and internal calls:** stable contracts for authentication, uploads, predictions, and listings.
+- **Externalized services via adapters:** storage drivers for images and SMTP integration with Mailgun decouple infrastructure concerns from core logic.
+- **Security patterns:** JWT-based session propagation at the gateway and downstream authorization checks in services (enforced via REST/GraphQL middleware).
+
 
 ---
 
@@ -216,85 +131,63 @@ This view describes runtime components deployed on AWS, the interfaces they prov
 
 <div align="center">
 
-![Deployment View](./images/deployment.png)
+![Deployment View](./images/deploy.png)
 
 </div>
 
 #### **🎯 Description of Architectural Elements and Relations:**
 
-This view describes how the system is deployed on AWS infrastructure across multiple Availability Zones for high availability and fault tolerance.
+| Element | Description | Relationships |
+|---------|-------------|---------------|
+| **VPC** | Isolated virtual network (10.0.0.0/16) containing all infrastructure | Contains all subnets, services, and databases |
+| **Public Subnets** | 2 subnets (10.0.1.0/24, 10.0.2.0/24) with Internet access | Host public ALB and NAT Gateway |
+| **Private Subnets** | 2 subnets (10.0.10.0/24, 10.0.20.0/24) without direct Internet access | Host all ECS services and RDS |
+| **NAT Gateway** | Allows private services to access Internet (e.g., pull images) | Connects private subnets → Internet |
+| **Public ALB** | Load balancer receiving Internet traffic and distributing it | Routes to web-frontend and api-gateway by path |
+| **Internal ALB** | Load balancer for internal service-to-service communication | web-frontend → api-gateway (Server Actions) |
 
-**AWS Region and Availability Zones:**
-- **Region**: `us-east-1` (N. Virginia)
-- **Availability Zones**: `us-east-1a`, `us-east-1b`, `us-east-1c`
-- **Multi-AZ Strategy**: All critical components deployed across at least 2 AZs
+### Application Services (ECS Fargate)
 
-**Network Architecture (VPC):**
-- **VPC CIDR**: `10.0.0.0/16`
-- **Public Subnets** (3): Host ALB and NAT Gateways
-  - `10.0.1.0/24` (us-east-1a), `10.0.2.0/24` (us-east-1b), `10.0.3.0/24` (us-east-1c)
-- **Private Subnets** (3): Host ECS tasks
-  - `10.0.11.0/24` (us-east-1a), `10.0.12.0/24` (us-east-1b), `10.0.13.0/24` (us-east-1c)
-- **Database Subnets** (3): Host RDS and DocumentDB
-  - `10.0.21.0/24` (us-east-1a), `10.0.22.0/24` (us-east-1b), `10.0.23.0/24` (us-east-1c)
-- **Internet Gateway**: Provides internet access to public subnets
-- **NAT Gateways** (3): One per AZ for private subnet internet access
-- **VPC Endpoints**: Private connectivity to S3 and ECR
+| Service | Port | Description | Relationships |
+|---------|------|-------------|---------------|
+| **web-frontend** | 3000 | Next.js UI with SSR | → api-gateway (Server Actions) |
+| **api-gateway** | 8080 | GraphQL/REST, backend entry point | → auth-be, prediagnostic-be, message-producer |
+| **auth-be** | 8081 | Authentication and user management | → RDS PostgreSQL |
+| **prediagnostic-be** | 8000 | ML model for pneumonia diagnosis (2 replicas) | → MongoDB, S3 |
+| **message-producer** | 8082 | Publishes events to message queue | → RabbitMQ |
+| **notification-be** | 8003 | Worker that consumes queue and sends notifications | ← RabbitMQ (consumes) |
 
-**Compute Layer (ECS Fargate):**
-- **ECS Cluster**: `neumodiagnostics-cluster`
-- **Container Orchestration**: AWS Fargate (serverless)
-- **Service Distribution**: Tasks distributed across 3 AZs
-- **Container Registry**: Amazon ECR (private repositories per service)
+### Data Services
 
-**Load Balancing:**
-- **Application Load Balancer**: Internet-facing, spans 3 public subnets
-- **Target Groups**: web-frontend-tg, api-gateway-tg
-- **Health Checks**: HTTP checks every 30 seconds
-- **SSL/TLS**: AWS Certificate Manager (ACM) certificates
+| Service | Port | Description | Relationships |
+|---------|------|-------------|---------------|
+| **MongoDB** | 27017 | NoSQL database for diagnostics and images | ← prediagnostic-be |
+| **RabbitMQ** | 5672 | Message broker for async communication | ← message-producer, → notification-be |
+| **RDS PostgreSQL** | 5432 | Relational database for users/auth | ← auth-be |
 
-**Database Layer:**
-- **RDS PostgreSQL**: Multi-AZ deployment
-  - Primary in us-east-1a, Standby in us-east-1b
-  - Automatic failover in < 2 minutes
-- **DocumentDB Cluster**: 3-node cluster
-  - 1 writer + 2 readers across 3 AZs
-  - Automatic failover in < 30 seconds
+### Service Discovery (AWS Cloud Map)
 
-**Message Broker:**
-- **Amazon MQ**: RabbitMQ cluster deployment
-  - Active broker in us-east-1a, Standby in us-east-1b
-  - Shared EBS storage for message persistence
+All services register in the `neumo.internal` namespace, enabling dynamic discovery via internal DNS (e.g., `auth-be.neumo.internal:8081`).
 
-**Storage:**
-- **Amazon S3**: Region-scoped, automatically replicated across AZs
-- **EBS Volumes**: For Amazon MQ persistent storage
+---
 
-**Service Dependencies:**
-- ECS tasks depend on: RDS, DocumentDB, Amazon MQ availability
-- Application Load Balancer depends on: At least one healthy ECS task per service
-- NAT Gateways depend on: Internet Gateway
-- All services depend on: AWS Secrets Manager for credentials
-
-**Deployment Process:**
-1. Infrastructure provisioned via Terraform/CloudFormation
-2. Docker images built and pushed to ECR
-3. ECS task definitions created with container specifications
-4. ECS services created with auto-scaling policies
-5. ALB target groups configured with health checks
-6. DNS records created in Route 53
-7. SSL certificates provisioned via ACM
 
 #### **🏛️ Description of Architectural Patterns Used:**
 
-- **Multi-AZ Deployment**: High availability across multiple Availability Zones
-- **Immutable Infrastructure**: Containers replaced rather than updated
-- **Infrastructure as Code**: Terraform/CloudFormation for reproducible deployments
-- **Blue/Green Deployment**: Zero-downtime deployments via ECS
-- **Auto-Scaling**: Dynamic resource adjustment based on demand
-- **Service Mesh**: AWS Cloud Map for service discovery
-- **Secrets Management**: Externalized credentials in Secrets Manager
-- **Monitoring as Code**: CloudWatch alarms and dashboards defined in IaC
+- **Container-per-Service**: Each component runs as an independent ECS Fargate task with its own container image stored in ECR.
+- **Database-per-Service**: `auth-be` uses RDS PostgreSQL, `prediagnostic-be` uses MongoDB (ECS container) - each service owns its data store.
+- **API Gateway Pattern**: `api-gateway` is the single ingress point for synchronous traffic (REST/GraphQL), isolating internal service topology from clients.
+- **Broker Pattern**: Asynchronous integration via RabbitMQ decouples producers (`message-producer`) from consumers (`notification-be`).
+
+### Network Patterns
+- **Private Network / Internal-only Services**: All services run in private subnets; inter-service communication uses AWS Cloud Map DNS (`*.neumo.internal`).
+- **Service Discovery Pattern**: AWS Cloud Map provides dynamic DNS-based service discovery, allowing services to locate each other without hardcoded IPs.
+
+### Availability Patterns
+- **Hot Spare (Redundant Spare)**: `api-gateway` runs behind ALB with health checks; failed instances are automatically replaced by ECS without downtime.
+- **Cluster Pattern (N+1)**: `prediagnostic-be` runs 2 replicas across availability zones for fault tolerance - if one fails, the other continues serving.
+- **Load Balancer + Removal from Service**: ALB performs health checks and automatically removes unhealthy targets from rotation, enabling zero-downtime deployments.
+- **Database Failover Ready**: RDS PostgreSQL is configured for easy Multi-AZ promotion in production environments.
 
 ---
 
