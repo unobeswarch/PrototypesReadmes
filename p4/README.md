@@ -143,7 +143,7 @@ This view describes runtime components, the interfaces they provide/require, and
 
 <div align="center">
 
-![Deployment View](./images/deploy.png)
+![Deployment View](./images/Vista_De_Despliegue-Página-2.png)
 
 </div>
 
