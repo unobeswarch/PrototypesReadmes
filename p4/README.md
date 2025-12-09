@@ -50,76 +50,88 @@ Our NeumoDiagnostics system employs multiple architectural views to ensure compr
 </div>
 
 #### **🎯 Description of Architectural Elements and Relations:**
-This view describes runtime components, the interfaces they provide/require, and the connectors between them (see figure). It focuses on communication paths and protocols rather than implementation internals.
+This view describes runtime components, the interfaces they provide/require, and the connectors between them. It focuses on communication paths and protocols rather than implementation internals.
 
-- User Interfaces
-	- `web browser`: Web-based user interface for accessing the system through graphical interface.
-		- Connectors: HTTPS to `web-front-end`.
-	- `cmd` (Command Line): Terminal-based interface for system access via command-line tools.
-		- Connectors: HTTPS to `cli-front-end`.
+### User Interfaces
+- **Web Browser**: Web-based user interface for accessing the system through graphical interface.
+  - Connectors: HTTP to `Public ALB`.
+- **CLI** (Command Line): Terminal-based interface for system access via command-line tools.
+  - Connectors: HTTP to `Public ALB`.
 
-- Clients
-	- `web-front-end` (Next.js): UI for doctors and patients.
-		- Connectors: HTTPS-REST to `reverse-proxy` for authentication and file uploads; HTTP-GRAPHQL to `reverse-proxy` for data queries/mutations.
-	- `cli-front-end` (Rust): Command-line client as a secondary interface.
-		- Connectors: HTTPS-REST to `reverse-proxy`.
+### Load Balancer and Security Layer
+- **Public ALB** (AWS Application Load Balancer): Internet-facing load balancer. Single entry point for all external requests.
+  - Provided interfaces: HTTP endpoints.
+  - Required connectors: HTTP to `web-frontend` (path `/*`), HTTP to `api-gateway` (paths `/graphql`, `/register`, `/login`, `/validation`, `/upload`).
+  - Functions: Path-based routing, health checks, target group management, removal from service for unhealthy instances.
+- **Internal ALB**: Internal load balancer for service-to-service communication.
+  - Provided interfaces: HTTP endpoints (VPC only).
+  - Required connectors: HTTP to `api-gateway` for Server-Side Rendering calls.
 
-- Load Balancer and Security Layer
-	- `reverse-proxy` (NginX): Acts as load balancer and security gateway. Single entry point for all client requests.
-		- Provided interfaces: HTTP endpoints for REST and GraphQL.
-		- Required connectors: HTTP-REST and HTTP-GRAPHQL to multiple `api-gateway` instances (load balanced).
-		- Functions: SSL/TLS termination, request filtering, load distribution across API Gateway instances.
+### Clients
+- **web-frontend** (Next.js on ECS Fargate): UI for doctors and patients with Server-Side Rendering.
+  - Connectors: HTTP to `Internal ALB` for Server Actions (authentication, data fetching).
+- **cli-front-end** (Rust): Command-line client as a secondary interface (runs locally on user's machine).
+  - Connectors: HTTP to `Public ALB`.
 
-- Gateway and orchestration
-	- `api-gateway` [1,2,3] (Go): Multiple instances for high availability. Single entry point for backend services, request validation, composition, and orchestration.
-		- Provided interfaces: `/query` (GraphQL), REST endpoints for auth and simple listings.
-		- Required connectors: HTTP-REST to `auth-be`, `prediagnostic-be`, and `message_producer`.
+### Gateway and Orchestration
+- **api-gateway** (Go on ECS Fargate): Single entry point for backend services, request validation, composition, and orchestration. Implements Hot Spare pattern via ALB health checks.
+  - Provided interfaces: `/graphql` (GraphQL), `/register`, `/login`, `/validation`, `/upload` (REST).
+  - Required connectors: HTTP to `auth-be`, `prediagnostic-be`, and `message-producer` via Cloud Map DNS.
 
-- Backend services
-	- `auth-be` (Go): Identity and session services.
-		- Provided: REST endpoints for login, logout, registration, profile image upload.
-		- Required connectors: PostgreSQL driver to `auth-db`; File Storage Driver to `Profile Image Storage`.
-	- `prediagnostic-be` (Python): Imaging and (pre)diagnostic workflows.
-		- Provided: REST endpoints for radiograph upload, prediction, case queries, and diagnosis registration.
-		- Required connectors: MongoDB driver to `prediagnostic-db`; File Storage Driver to `Radiography Image Storage`.
-	- `message_producer` (Go): Publishes domain messages.
-		- Provided: REST endpoint used by `api-gateway` to request a notification.
-		- Required connectors: AMQP to `message-broker`; File Storage Driver for temporary storage.
-	- `notification-be` (Go): Asynchronous notifications consumer.
-		- Provided: Background consumer.
-		- Required connectors: AMQP subscription to `message-broker`; SMTP to `Mailgun` (external provider).
+### Backend Services
+- **auth-be** (Go on ECS Fargate): Identity and session services.
+  - Provided: REST endpoints for login, logout, registration, token validation, profile image upload.
+  - Required connectors: PostgreSQL driver to `RDS auth-db`; S3 driver to `Profile Image Storage`.
+- **prediagnostic-be** (Python on ECS Fargate): Imaging and (pre)diagnostic workflows. Implements Cluster N+1 pattern with 2 replicas.
+  - Provided: REST endpoints for radiograph upload, ML prediction, case queries, and diagnosis registration.
+  - Required connectors: MongoDB driver to `mongodb`; S3 driver to `Radiography Image Storage`.
+- **message-producer** (Go on ECS Fargate): Publishes domain messages to queue.
+  - Provided: REST endpoint used by `api-gateway` to request a notification.
+  - Required connectors: AMQP to `rabbitmq`.
+- **notification-be** (Python on ECS Fargate): Asynchronous notifications consumer (worker pattern).
+  - Provided: Background consumer (no HTTP interface).
+  - Required connectors: AMQP subscription to `rabbitmq`; SMTP to external email provider.
 
-- Data stores and external services
-	- `auth-db` (PostgreSQL): identity store accessed only by `auth-be` via DB driver.
-	- `prediagnostic-db` (MongoDB): clinical documents accessed only by `prediagnostic-be` via MongoDB driver.
-	- `message-broker` (AMQP): decouples producer and consumer via queues/topics.
-	- `Mailgun` (SMTP): external email service used by `notification-be`.
-	- `Radiography Image Storage` and `Profile Image Storage`: binary storage behind file drivers used by `prediagnostic-be` and `auth-be` respectively.
+### Data Stores
+- **RDS PostgreSQL** (`auth-db`): Managed relational database for identity store. Accessed only by `auth-be` via PostgreSQL driver. Pattern: Database Failover Ready (Multi-AZ capable).
+- **MongoDB** (ECS Fargate): NoSQL database for clinical documents. Accessed only by `prediagnostic-be` via MongoDB driver.
+- **RabbitMQ** (ECS Fargate): Message broker implementing Broker Pattern. Decouples `message-producer` from `notification-be` via queues.
+- **S3 Buckets**: Object storage for `Radiography Image Storage` and `Profile Image Storage`.
 
-- Connector summary and directionality
-	- HTTPS: `web browser → web-front-end`, `cmd → cli-front-end`.
-	- HTTPS-REST: `cli-front-end → reverse-proxy → api-gateway [1,2,3]`.
-	- HTTPS-GRAPHQL: `web-front-end → reverse-proxy → api-gateway [1,2,3]`.
-	- HTTP-REST: `web-front-end → reverse-proxy → api-gateway [1,2,3]` (for auth and uploads).
-	- HTTP-REST (internal): `api-gateway → (auth-be | prediagnostic-be | message_producer)`.
-	- AMQP: `message_producer → message-broker → notification-be`.
-	- SMTP: `notification-be → Mailgun`.
-	- DB drivers: `auth-be → auth-db (PostgreSQL)`, `prediagnostic-be → prediagnostic-db (MongoDB)`.
-	- File drivers: `prediagnostic-be → Radiography Image Storage`, `auth-be → Profile Image Storage`, `message_producer → File Storage`.
+### Connector Summary and Directionality
+- **HTTP (External)**: `Web Browser / CLI → Public ALB`
+- **HTTP (Path Routing)**: `Public ALB → web-frontend (/*)`; `Public ALB → api-gateway (/graphql, /register, /login, /upload)`
+- **HTTP (Internal SSR)**: `web-frontend → Internal ALB → api-gateway`
+- **HTTP (Service Mesh)**: `api-gateway → auth-be | prediagnostic-be | message-producer` (via Cloud Map DNS)
+- **AMQP**: `message-producer → rabbitmq → notification-be`
+- **SMTP**: `notification-be → External Email Provider`
+- **PostgreSQL Driver**: `auth-be → RDS auth-db`
+- **MongoDB Driver**: `prediagnostic-be → mongodb`
+- **S3 Driver**: `prediagnostic-be → Radiography Storage`; `auth-be → Profile Storage`
 
+---
 #### **🏛️ Description of Architectural Styles and Patterns Used:**
 
-- **Client–Server:** browsers/CLI act as clients connecting to the system through the reverse proxy.
-- **Reverse Proxy Pattern:** NginX serves as the single entry point, providing SSL/TLS termination, request filtering, and load balancing capabilities.
-- **Load Balancer Pattern:** Weighted Round-Robin algorithm distributes requests across multiple `api-gateway` instances [1,2,3] for high availability and performance.
-- **API Gateway Pattern:** Multiple `api-gateway` instances expose a unified surface for multiple backends and tailor responses for the UI (GraphQL + REST).
-- **Layered Style (tiers):** Presentation (clients), Security/Load Balancing (reverse-proxy), Communication (gateway), Logic (backends), Data (datastores), Asynchronous (broker), and External (Mailgun). Connectors respect top-down usage between adjacent tiers.
-- **Service-Based:** `auth-be`, `prediagnostic-be`, `notification-be`, and `message_producer` are independently deployable services with well-defined interfaces.
-- **Broker Pattern (mediated messaging):** `message_producer` publishes messages to `message-broker`, `notification-be` consumes; the broker decouples producers and consumers and enables retry/DLQ.
-- **GraphQL for client composition:** `web-front-end` queries only required fields via `/query` to avoid over-/under-fetching.
-- **REST for transactional and internal calls:** stable contracts for authentication, uploads, predictions, and listings.
-- **Externalized services via adapters:** storage drivers for images and SMTP integration with Mailgun decouple infrastructure concerns from core logic.
-- **Security patterns:** JWT-based session propagation at the gateway and downstream authorization checks in services (enforced via REST/GraphQL middleware).
+- **Client–Server:** Web browsers and CLI act as clients connecting to the system through the Public ALB.
+- **Load Balancer Pattern:** AWS ALB distributes requests to `api-gateway` and `web-frontend` instances using path-based routing and health checks for high availability.
+- **API Gateway Pattern:** `api-gateway` exposes a unified surface for multiple backends (GraphQL + REST), orchestrates calls to downstream services, and isolates internal service topology from clients.
+- **Layered Style (tiers):** Presentation (`web-frontend`, CLI), Load Balancing/Routing (ALBs), Communication (`api-gateway`), Logic (`auth-be`, `prediagnostic-be`, `message-producer`, `notification-be`), Data (RDS, MongoDB, S3), and Asynchronous (RabbitMQ). Connectors respect top-down usage between adjacent tiers.
+- **Service-Based:** `auth-be`, `prediagnostic-be`, `notification-be`, and `message-producer` are independently deployable services with well-defined REST interfaces and separate data stores.
+- **Broker Pattern (mediated messaging):** `message-producer` publishes messages to `rabbitmq`; `notification-be` consumes asynchronously. The broker decouples producers from consumers and enables retry mechanisms.
+- **Service Discovery Pattern:** AWS Cloud Map provides DNS-based discovery (`*.neumo.internal`), allowing services to locate each other dynamically without hardcoded IPs.
+- **GraphQL for client composition:** `web-frontend` queries only required fields via `/graphql` to avoid over-/under-fetching.
+- **REST for transactional and internal calls:** Stable contracts for authentication, uploads, predictions, and inter-service communication.
+- **Externalized services via adapters:** S3 drivers for image storage and SMTP integration with external email providers decouple infrastructure concerns from core business logic.
+- **Security patterns:** JWT-based session propagation at the gateway; downstream authorization checks in services via REST/GraphQL middleware; network isolation via private subnets and Security Groups.
+
+**Evolution from Docker Compose to AWS ECS:**
+| Original (Docker Compose) | Current (AWS ECS) |
+|---------------------------|-------------------|
+| NginX Reverse Proxy (SSL termination, load balancing) | AWS ALB (path-based routing, health checks, managed SSL-ready) |
+| Weighted Round-Robin in NginX config | ALB Target Groups with health-based routing |
+| Static Docker network | VPC with public/private subnets + Cloud Map DNS |
+| Single-host deployment | Multi-AZ Fargate (serverless containers) |
+| Manual container management | ECS auto-scaling and task replacement |
 
 
 ---
@@ -174,16 +186,13 @@ All services register in the `neumo.internal` namespace, enabling dynamic discov
 
 #### **🏛️ Description of Architectural Patterns Used:**
 
-- **Container-per-Service**: Each component runs as an independent ECS Fargate task with its own container image stored in ECR.
-- **Database-per-Service**: `auth-be` uses RDS PostgreSQL, `prediagnostic-be` uses MongoDB (ECS container) - each service owns its data store.
+
 - **API Gateway Pattern**: `api-gateway` is the single ingress point for synchronous traffic (REST/GraphQL), isolating internal service topology from clients.
 - **Broker Pattern**: Asynchronous integration via RabbitMQ decouples producers (`message-producer`) from consumers (`notification-be`).
 
-### Network Patterns
-- **Private Network / Internal-only Services**: All services run in private subnets; inter-service communication uses AWS Cloud Map DNS (`*.neumo.internal`).
+
 - **Service Discovery Pattern**: AWS Cloud Map provides dynamic DNS-based service discovery, allowing services to locate each other without hardcoded IPs.
 
-### Availability Patterns
 - **Hot Spare (Redundant Spare)**: `api-gateway` runs behind ALB with health checks; failed instances are automatically replaced by ECS without downtime.
 - **Cluster Pattern (N+1)**: `prediagnostic-be` runs 2 replicas across availability zones for fault tolerance - if one fails, the other continues serving.
 - **Load Balancer + Removal from Service**: ALB performs health checks and automatically removes unhealthy targets from rotation, enabling zero-downtime deployments.
