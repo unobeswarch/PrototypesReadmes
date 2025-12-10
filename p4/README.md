@@ -419,17 +419,17 @@ Our system implements four critical security scenarios to ensure data protection
 
 <div align="center">
 
-![Network Segmentation Scenario](./images/Escenario%20-%20Network%20Segmentation%20Pattern.png)
+![Network Segmentation Scenario](./images/nuevo-Escenario-NetworkSegmentationPattern.png)
 
 </div>
 
 **Description:**
-- **Source (Fuente):** Person using their own computer
-- **Stimulus (Estímulo):** Direct request sent to some component of the private network (Back-end and databases)
-- **Artifact (Artefacto):** Private network components (Back-end and databases)
+- **Source (Fuente):** Attacker attempting to access internal resources
+- **Stimulus (Estímulo):** Direct request sent to some component of the private subnet (Back-end and databases)
+- **Artifact (Artefacto):** Private subnet resources: ECS tasks (Back-end and databases)
 - **Environment (Ambiente):** System during its normal execution
 - **Response (Respuesta):** Request rejection
-- **Response Measure (Medición de la respuesta):** Number of requests made to private network components that have been rejected
+- **Response Measure (Medición de la respuesta):** 100% of requests made to components of the private subnet have been rejected
 
 **Applied Pattern:** Network Segmentation Pattern
 
