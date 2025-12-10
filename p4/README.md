@@ -492,6 +492,42 @@ Our system implements four critical security scenarios to ensure data protection
 
 **Applied Pattern:** Secure Channel Pattern (HTTPS/TLS)
 
+**AWS Implementation Details:**
+
+Our HTTPS/TLS implementation in AWS ECS uses the following components:
+
+- **SSL/TLS Certificate:** AWS Certificate Manager (ACM) certificate for `neumodiagnostics.tech` domain
+  - Validation Method: DNS validation via CNAME records
+  - Certificate Authority: Amazon
+  - Key Algorithm: RSA 2048-bit
+  - Auto-renewal enabled for continuous security
+  
+- **TLS Configuration on Public ALB:**
+  - **HTTPS Listener (Port 443):** 
+    - Security Policy: `ELBSecurityPolicy-TLS13-1-2-Res-PQ-2025-09` (Post-Quantum resistant)
+    - Supported Protocols: TLS 1.3 (primary), TLS 1.2 (fallback for legacy clients)
+    - Cipher Suites: `TLS_AES_128_GCM_SHA256`, `TLS_AES_256_GCM_SHA384`, `TLS_CHACHA20_POLY1305_SHA256`
+    - Certificate: ACM certificate attached to listener
+    - Target: Routes to `web-frontend` and `api-gateway` target groups
+  
+  - **HTTP Listener (Port 80):**
+    - Automatic redirect to HTTPS (Port 443)
+    - Redirect Type: HTTP 301 (Permanent)
+    - Pattern: `https://#{host}:443/#{path}?#{query}`
+    - Ensures all traffic is encrypted
+  
+- **DNS Configuration:**
+  - Domain: `www.neumodiagnostics.tech` (CNAME record)
+  - Points to: Public ALB DNS endpoint
+  - Enables custom domain access with valid SSL certificate
+
+- **Security Benefits:**
+  - End-to-end TLS 1.3 encryption from client to ALB
+  - Post-Quantum cryptography resistant to future quantum computer attacks
+  - Certificate transparency compliance for public auditability
+  - Automatic certificate renewal prevents expiration-related outages
+  - All HTTP traffic automatically upgraded to HTTPS
+
 ---
 
 #### **Applied Architectural Tactics**
