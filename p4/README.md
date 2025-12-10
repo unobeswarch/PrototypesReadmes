@@ -654,7 +654,7 @@ Tactic: Redundant spare
 
 **Applied Pattern:** Cluster Pattern (Active-Active)
 
-##### **Scenario 3: Load Balancer with Removal From Service Tactic implementend**
+##### **Scenario 3: Load Balancer with Removal From Service Tactic**
 
 <div align="center">
 
@@ -663,14 +663,16 @@ Tactic: Redundant spare
 </div>
 
 **Description:**
-- **Source (Fuente):** User (doctor or patient)
-- **Stimulus (Estímulo):** User sends a request
+- **Source (Fuente):** User (Doctor or patient)
+- **Stimulus (Estímulo):** User sends a request to the system
 - **Artifact (Artefacto):** The system
-- **Environment (Ambiente):** System with failes in one of the API Gateway instances
-- **Response (Respuesta):**  The load balancer detects the failures in one of the instances and discards it for the next requests
-- **Response Measure (Medición de la respuesta):** Number of requests without processing due to the failure in the instance of the API Gateway
+- **Environment (Ambiente):** System during normal operation with one API Gateway instance failing
+- **Response (Respuesta):** Public ALB detects unhealthy instance, immediately removes it from target group rotation, routes all subsequent requests to healthy instances, ECS launches replacement task, user experiences no service interruption
+- **Response Measure (Medición de la respuesta):** Number of requests successfully processed by healthy instances. 0 requests routed to unhealthy instance after detection.
 
 **Applied Pattern:** Load Balancer
+
+**Applied Tactic:** Removal from Service (Detect Faults + Recover from Faults)
 
 **Scenario 4: Service Discovery Pattern**
 
