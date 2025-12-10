@@ -552,11 +552,11 @@ Our system implements performance and scalability scenarios to ensure optimal re
 
 **Applied Pattern:** Load Balancer
 
-We have made a stress test in the register service of our system, next you can see the results:
+We have made a stress test in the register service of our system. The first scenario has 2 api gateways instances and one auth-be instance and the second one has 2 api-gateways instances and two auth-be instances.
 
 <div align="center">
 
-![Load Balancer Scenario](./images/stress.png)
+![Load Balancer Scenario](./images/testscenarios.png)
 
 </div>
 
@@ -694,7 +694,7 @@ Tactic: Reconfiguration
 ### **Interoperability Scenario**
 
 
-##### **Scenario 1: Interoperability**
+**Scenario 1: Interoperability**
 
 <div align="center">
 
