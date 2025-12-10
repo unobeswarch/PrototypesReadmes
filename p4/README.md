@@ -206,7 +206,7 @@ All services register in the `neumo.internal` namespace, enabling dynamic discov
 
 <div align="center">
 
-![Layered Structure](./images/layers.png)
+![Layered Structure](./images/capass.png)
 
 </div>
 
@@ -214,14 +214,14 @@ All services register in the `neumo.internal` namespace, enabling dynamic discov
 
 Our NeumoDiagnostics system is structured in **seven distinct layers** (tiers), each with specific responsibilities and well-defined interactions:
 
-##### 🖼️ **Layer 1: Presentation**
+🖼️ **Layer 1: Presentation**
 - **Purpose**: User interface and interaction management
 - **Components**: 
   - Web Front-end (Next.js on ECS Fargate)
   - CLI Front-end (Rust, runs locally on user's machine)
 - **Relations**: Generates requests that are forwarded to the Load Balancing layer via HTTP
 
-##### 🔄 **Layer 2: Load Balancing and Routing**
+🔄 **Layer 2: Load Balancing and Routing**
 - **Purpose**: Request distribution, path-based routing, and health monitoring
 - **Key Components**: 
   - Public ALB (internet-facing, receives external traffic)
@@ -232,7 +232,7 @@ Our NeumoDiagnostics system is structured in **seven distinct layers** (tiers), 
   - Performs health checks and removes unhealthy targets from rotation
   - Acts as single entry point for external traffic
 
-##### 🔀 **Layer 3: Synchronous Orchestration**
+🔀 **Layer 3: Synchronous Orchestration**
 - **Purpose**: Real-time request routing, validation, and orchestration
 - **Key Component**: API Gateway (Go on ECS Fargate)
 - **Relations**: 
@@ -241,7 +241,7 @@ Our NeumoDiagnostics system is structured in **seven distinct layers** (tiers), 
   - Ensures synchronous communication patterns (GraphQL + REST)
   - Validates and composes requests before forwarding
 
-##### ⚙️ **Layer 4: Logic**
+⚙️ **Layer 4: Logic**
 - **Purpose**: Core business logic and system functionality
 - **Components**: 
   - auth-be (Go) - Authentication and user management
@@ -254,7 +254,7 @@ Our NeumoDiagnostics system is structured in **seven distinct layers** (tiers), 
   - Implements main system functionalities
   - Publishes events to Asynchronous Communication layer
 
-##### 📨 **Layer 5: Asynchronous Communication**
+📨 **Layer 5: Asynchronous Communication**
 - **Purpose**: Non-blocking message handling and event-driven communication
 - **Technology**: RabbitMQ (AMQP protocol, on ECS Fargate)
 - **Relations**: 
@@ -262,7 +262,7 @@ Our NeumoDiagnostics system is structured in **seven distinct layers** (tiers), 
   - Enables system to continue processing while messages are queued
   - Supports decoupled component communication
 
-##### 💾 **Layer 6: Data**
+💾 **Layer 6: Data**
 - **Purpose**: Data storage and integrity management
 - **Components**: 
   - RDS PostgreSQL (`auth-db`) - User and authentication data
@@ -270,7 +270,7 @@ Our NeumoDiagnostics system is structured in **seven distinct layers** (tiers), 
   - S3 Buckets - Radiography and profile image storage
 - **Relations**: Provides persistent storage for all system data, accessed exclusively by Logic layer components
 
-##### 🌐 **Layer 7: External Communication**
+🌐 **Layer 7: External Communication**
 - **Purpose**: Integration with external services
 - **Services**: External Email Provider (SMTP)
 - **Relations**: 
