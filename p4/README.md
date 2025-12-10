@@ -637,7 +637,7 @@ Tactic: Redundant spare
 
 **Applied Pattern:** Replication Pattern (Hot Spare)
 
-**Scenario 2: Cluster Pattern**
+**Scenario 2: Cluster Pattern (Active-Active)**
 
 <div align="center">
 
@@ -646,14 +646,14 @@ Tactic: Redundant spare
 </div>
 
 **Description:**
-- **Source (Fuente):** Patient using the system from his PC
-- **Stimulus (Estímulo):** User enters to his dashboard to see his radiographies and their states
-- **Artifact (Artefacto):** The system
-- **Environment (Ambiente):** System during the normal execution
-- **Response (Respuesta):** The MongoDB cluster filters the radipgraphies by user's id and returns the information to visualize it in the front end
-- **Response Measure (Medición de la respuesta):** Percentage of correctly returned cases
+- **Source (Fuente):** Patient using the application
+- **Stimulus (Estímulo):** User uploads their chest X-ray for pneumonia diagnosis while one of the two prediagnostic-be instances is down
+- **Artifact (Artefacto):** prediagnostic-be cluster (2 ECS Fargate tasks)
+- **Environment (Ambiente):** System with one of two prediagnostic-be instances failing.
+- **Response (Respuesta):** ALB detects unhealthy instance, routes traffic only to healthy instance, ECS launches replacement task, ML prediction processed successfully without user interruption
+- **Response Measure (Medición de la respuesta):** Number of prediction requests processed successfully despite single instance failure.
 
-**Applied Pattern:** Cluster Pattern
+**Applied Pattern:** Cluster Pattern (Active-Active)
 
 ##### **Scenario 3: Load Balancer with Removal From Service Tactic implementend**
 
@@ -691,23 +691,7 @@ Tactic: Reconfiguration
 
 **Applied Pattern:** Service Discovery Pattern
 
-**Scenario 5: Cluster pattern**
 
-<div align="center">
-
-![Service Discovery Pattern](./images/Copia%20de%20Escenario%20-%20cluster.png)
-
-</div>
-
-**Description:**
-- **Source (Fuente):** User using the aplication
-- **Stimulus (Estímulo):** User uploads a x-ray
-- **Artifact (Artefacto):** The system
-- **Environment (Ambiente):** The system with one of its prediagnostic-be nodes down
-- **Response (Respuesta):** The system works correctly with the upload of the x-ray and its prediction
-- **Response Measure (Medición de la respuesta):** Number of requests processed
-
-**Applied Pattern:** Cluster Pattern
 
 #### **Applied Architectural Tactics**
 
