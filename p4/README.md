@@ -581,12 +581,12 @@ Our system implements performance and scalability scenarios to ensure optimal re
 - **Stimulus (Estímulo):** Sending 300 different requests in 1 second
 - **Artifact (Artefacto):** System
 - **Environment (Ambiente):** System during its normal execution
-- **Response (Respuesta):** Distribution of requests among the 2 API Gateway instances according to the Weighted Round-Robin algorithm
+- **Response (Respuesta):** Distribution of requests among the 3 API Gateway instances according to the Weighted Round-Robin algorithm
 - **Response Measure (Medición de la respuesta):** Number of requests handled by each API Gateway instance
 
 **Applied Pattern:** Load Balancer
 
-We have made a stress test in the register service of our system. The first scenario has 2 api gateways instances and one auth-be instance and the second one has 2 api-gateways instances and two auth-be instances.
+We have made a stress test in the register service of our system. The first scenario has 3 api gateways instances and one auth-be instance and the second one has 3 api-gateways instances and two auth-be instances.
 
 <div align="center">
 
