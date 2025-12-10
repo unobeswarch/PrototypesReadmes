@@ -604,12 +604,18 @@ We have made a stress test in the register service of our system. The first scen
 
 **📋 Description:**
 - **Source (Fuente):** One or several users or a botnet.
-- **Stimulus (Estímulo):** Sending more than 20 requests per minute from the same user.
+- **Stimulus (Estímulo):** Sending more than 100 requests per minute from the same user.
 - **Artifact (Artefacto):** System
 - **Environment (Ambiente):** System during its normal execution
-- **Response (Respuesta):** Limit the number of requests per minute from the same source establishing a rate limit through an intermediary (nginx)
+- **Response (Respuesta):** Limit the number of requests per minute from the same source establishing a rate limit through an intermediary (WAF in ALB)
 
 - **Response Measure (Medición de la respuesta):** The number of requests accepted and rejected from the implied service.
+
+evidence:
+<img width="1113" height="83" alt="image" src="https://github.com/user-attachments/assets/0743bb66-abfd-4a29-8cba-e49d882b0875" />
+<img width="224" height="442" alt="image" src="https://github.com/user-attachments/assets/0e08eb4b-faf3-4c0c-b661-9c894b55a4e1" />
+<img width="379" height="200" alt="image" src="https://github.com/user-attachments/assets/375a1ab2-a3db-4def-bd40-c20eae1b2aad" />
+
 
 **Applied Pattern:** **Throttling***: This pattern is used to limit access to some important resource or service. We can gracefully handle variations in demand.
 
