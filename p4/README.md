@@ -412,7 +412,7 @@ All security scenarios from Prototype 3 are maintained and enhanced:
 
 Our system implements four critical security scenarios to ensure data protection, user authentication, and secure communications:
 
-##### **Scenario 1: Network Segmentation**
+**Scenario 1: Network Segmentation**
 
 <div align="center">
 
@@ -432,7 +432,7 @@ Our system implements four critical security scenarios to ensure data protection
 
 ---
 
-##### **Scenario 2: Reverse Proxy**
+**Scenario 2: Reverse Proxy**
 
 <div align="center">
 
@@ -452,7 +452,7 @@ Our system implements four critical security scenarios to ensure data protection
 
 ---
 
-##### **Scenario 3: Token Authentication (JWT)**
+**Scenario 3: Token Authentication (JWT)**
 
 <div align="center">
 
@@ -474,7 +474,7 @@ Our system implements four critical security scenarios to ensure data protection
 
 ---
 
-##### **Scenario 4: Secure Channel (HTTPS/TLS)**
+**Scenario 4: Secure Channel (HTTPS/TLS)**
 
 <div align="center">
 
@@ -547,16 +547,24 @@ Our system implements performance and scalability scenarios to ensure optimal re
 - **Stimulus (Estímulo):** Sending 300 different requests in 1 second
 - **Artifact (Artefacto):** System
 - **Environment (Ambiente):** System during its normal execution
-- **Response (Respuesta):** Distribution of requests among the 3 API Gateway instances according to the Weighted Round-Robin algorithm
+- **Response (Respuesta):** Distribution of requests among the 2 API Gateway instances according to the Weighted Round-Robin algorithm
 - **Response Measure (Medición de la respuesta):** Number of requests handled by each API Gateway instance
 
 **Applied Pattern:** Load Balancer
+
+We have made a stress test in the register service of our system, next you can see the results:
+
+<div align="center">
+
+![Load Balancer Scenario](./images/stress.png)
+
+</div>
 
 ### **Scenario 2: Throttling**
 
 <div align="center">
 
-![Load Balancer Scenario](./images/throught.png)
+![ThroughtPut Scenario](./images/throught.png)
 
 </div>
 
