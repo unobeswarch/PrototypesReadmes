@@ -439,17 +439,17 @@ Our system implements four critical security scenarios to ensure data protection
 
 <div align="center">
 
-![Reverse Proxy Scenario](./images/Escenario%20-%20Reverse%20Proxy.png)
+![Reverse Proxy Scenario](./images/Escenario-Reverse-Proxy-nuevo.png)
 
 </div>
 
 **Description:**
-- **Source (Fuente):** External attacker or poorly maintained client
-- **Stimulus (Estímulo):** Multiple malicious requests attempting to access backend services and overload the API Gateway
-- **Artifact (Artefacto):** NginX configured as the single entry point
+- **Source (Fuente):** External attacker
+- **Stimulus (Estímulo):** Multiple malicious requests attempting to access backend services
+- **Artifact (Artefacto):** ELB configured as the single entry point
 - **Environment (Ambiente):** System during its normal execution
-- **Response (Respuesta):** The reverse proxy intercepts and blocks unauthorized access, filters and detects each request
-- **Response Measure (Medición de la respuesta):** The reverse proxy registers and rejects illegitimate access, maintains and protects healthy instances
+- **Response (Respuesta):** The reverse proxy intercepts and blocks unauthorized access
+- **Response Measure (Medición de la respuesta):** The reverse proxy rejects illegitimate access and protects backend services
 
 **Applied Pattern:** Reverse Proxy Pattern
 
