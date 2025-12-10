@@ -7,7 +7,6 @@
 
 | **Member** | **Email** |
 |------------|-----------|
-| 🔹 Edinson Sanchez Fuentes | edsanchezf@unal.edu.co |
 | 🔹 Adrian Ramirez Gonzalez | adramirez@unal.edu.co |
 | 🔹 Sergio Nicolas Siabatto Cleves | ssiabatto@unal.edu.co |
 | 🔹 Martin Polanco Barrero | mpolancob@unal.edu.co |
@@ -45,7 +44,7 @@ Our NeumoDiagnostics system employs multiple architectural views to ensure compr
 
 <div align="center">
 
-![C&C View](./images/cycview.png)
+![C&C View](./images/CYC.png)
 
 </div>
 
@@ -93,8 +92,8 @@ This view describes runtime components, the interfaces they provide/require, and
   - Required connectors: AMQP subscription to `rabbitmq`; SMTP to external email provider.
 
 ### Data Stores
-- **RDS PostgreSQL** (`auth-db`): Managed relational database for identity store. Accessed only by `auth-be` via PostgreSQL driver. Pattern: Database Failover Ready (Multi-AZ capable).
-- **MongoDB** (ECS Fargate): NoSQL database for clinical documents. Accessed only by `prediagnostic-be` via MongoDB driver.
+- **Auth-db** (`auth-db`): Managed relational database for identity store. Accessed only by `auth-be` via PostgreSQL driver. Pattern: Database Failover Ready (Multi-AZ capable).
+- **prediagnostic-db** (ECS Fargate): NoSQL database for clinical documents. Accessed only by `prediagnostic-be` via MongoDB driver.
 - **RabbitMQ** (ECS Fargate): Message broker implementing Broker Pattern. Decouples `message-producer` from `notification-be` via queues.
 - **S3 Buckets**: Object storage for `Radiography Image Storage` and `Profile Image Storage`.
 
@@ -115,7 +114,6 @@ This view describes runtime components, the interfaces they provide/require, and
 - **Client–Server:** Web browsers and CLI act as clients connecting to the system through the Public ALB.
 - **Load Balancer Pattern:** AWS ALB distributes requests to `api-gateway` and `web-frontend` instances using path-based routing and health checks for high availability.
 - **API Gateway Pattern:** `api-gateway` exposes a unified surface for multiple backends (GraphQL + REST), orchestrates calls to downstream services, and isolates internal service topology from clients.
-- **Layered Style (tiers):** Presentation (`web-frontend`, CLI), Load Balancing/Routing (ALBs), Communication (`api-gateway`), Logic (`auth-be`, `prediagnostic-be`, `message-producer`, `notification-be`), Data (RDS, MongoDB, S3), and Asynchronous (RabbitMQ). Connectors respect top-down usage between adjacent tiers.
 - **Service-Based:** `auth-be`, `prediagnostic-be`, `notification-be`, and `message-producer` are independently deployable services with well-defined REST interfaces and separate data stores.
 - **Broker Pattern (mediated messaging):** `message-producer` publishes messages to `rabbitmq`; `notification-be` consumes asynchronously. The broker decouples producers from consumers and enables retry mechanisms.
 - **Service Discovery Pattern:** AWS Cloud Map provides DNS-based discovery (`*.neumo.internal`), allowing services to locate each other dynamically without hardcoded IPs.
